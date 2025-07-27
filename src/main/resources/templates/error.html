@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8" />
+    <title>Error</title>
+</head>
+<body>
+    <h1 th:text="${status} + ' ' + ${error}">エラー</h1>
+    <p><strong>メッセージ:</strong> <span th:text="${message}">なし</span></p>
+
+    <p><strong>例外クラス:</strong> <span th:text="${exception}">なし</span></p>
+
+    <h3>スタックトレース</h3>
+    <pre th:text="${trace}">（スタックトレースなし）</pre>
+
+    <p>ログイン画面に戻ってください</p>
+    <form method="post" th:action="@{/logout}">
+        <button class="btn btn-link" type="submit">ログイン画面</button>
+    </form>
+</body>
+</html>

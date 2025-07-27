@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/layout}">
+<head>
+    <title>勤怠</title>
+
+    <!-- 個別CSS -->
+    <link rel="stylesheet" th:href="@{/css/kintai/list.css}"> 
+    
+    <!-- FullCalendar CSS -->
+	<!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css">	-->
+    
+    <!-- DataTables CSS -->
+    <link rel="stylesheet" th:href="@{/webjars/datatables/css/jquery.dataTables.min.css}">
+
+    <!-- DataTables JS -->
+    <script src="/webjars/datatables/js/jquery.dataTables.min.js" defer></script>
+
+    <!-- FullCalendar JS -->
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+
+    <!-- 勤怠JS -->
+    <script th:src="@{/js/kintai/kintai.js}" defer></script>
+	
+	<script th:inline="javascript">	
+		const 	sessionUserName = /*[[${sessionUserName}]]*/ 	'defaultUser';
+		const 	sessionUserId = /*[[${sessionUserId}]]*/ 	'defaultUser';
+		
+			
+		 </script>
+</head>
+
+<!-- 🔽 ログインユーザー名をdata属性に埋め込む -->
+<body th:attr="data-username=${sessionUserName}">
+<div layout:fragment="content">
+    <div class="header border-bottom mb-4">
+        <h1 class="h2">勤怠</h1>
+    </div>
+	
+	<!-- 勤怠テーブル -->
+	<div id="kintai-table-container" class="mt-4"></div>
+
+    <!-- カレンダー -->
+    <div id="kintai-calendar" class="mb-4"></div>
+
+</div>
+</body>
+</html>
