@@ -27,6 +27,7 @@
   </div>
   <form id="koutsuhi-form">
     <input type="hidden" name="userId" th:value="${sessionUserName}" />
+	<input type="hidden" id="deletedKoutsuhiIds" name="deletedKoutsuhiIds" />
     <table id="koutsuhiTable" border="1">
       <thead>
         <tr>
@@ -49,7 +50,8 @@
   </div>
   <form id="keihi-form">
     <input type="hidden" name="userId" th:value="${sessionUserName}" />
-    <table id="keihiTable" border="1">
+	<input type="hidden" id="deletedKeihiIds" name="deletedKeihiIds" />
+	 <table id="keihiTable" border="1">
       <thead>
         <tr>
           <th>日付</th><th>手段</th><th>出発地</th><th>到着地</th>

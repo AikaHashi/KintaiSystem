@@ -5,8 +5,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -38,15 +40,16 @@ public class KoutsuhiKeihiController {
     @GetMapping("/kintai/koutsuhiKeihi/{userId}")
     public String displayKeihiForm(@PathVariable String userId, Model model) {
         MUser user = userService.getUserOne(userId);
+        if (user == null) {
+            model.addAttribute("errorMessage", "ユーザーが見つかりません。");
+            return "error/404"; // 404ページを用意しておくと良い
+        }
 
-        // DBから交通費・経費の一覧を取得
         String currentYearMonth = java.time.LocalDate.now().withDayOfMonth(1).toString().substring(0, 7);
-        List<Koutsuhi> koutsuhiList = koutsuhiService.findByUserIdAndYearMonth(userId,currentYearMonth);
-        List<Keihi> keihiList = keihiService.findByUserIdAndYearMonth(userId,currentYearMonth);
 
-        
-        
-        // フォームにセット
+        List<Koutsuhi> koutsuhiList = koutsuhiService.findByUserIdAndYearMonth(userId, currentYearMonth);
+        List<Keihi> keihiList = keihiService.findByUserIdAndYearMonth(userId, currentYearMonth);
+
         KoutsuhiForm koutsuhiForm = new KoutsuhiForm();
         koutsuhiForm.setUserId(userId);
         koutsuhiForm.setKoutsuhiList(koutsuhiList);
@@ -55,37 +58,40 @@ public class KoutsuhiKeihiController {
         keihiForm.setUserId(userId);
         keihiForm.setKeihiList(keihiList);
 
-        
-        model.addAttribute("koutsuhiList", koutsuhiList);
-        model.addAttribute("keihiList", keihiList);
         model.addAttribute("koutsuhiForm", koutsuhiForm);
         model.addAttribute("keihiForm", keihiForm);
-        model.addAttribute("sessionUserName", userId);
+        model.addAttribute("koutsuhiList", koutsuhiList);
+        model.addAttribute("keihiList", keihiList);
+        model.addAttribute("sessionUserId", userId); // ← 画面側でも `${sessionUserId}` を使うように統一
 
         return "kintai/koutsuhiKeihi";
     }
 
     @PostMapping("/kintai/keihi/saveKoutsuhi")
-    public String saveKoutsuhi(@ModelAttribute KoutsuhiForm form) {
+    public String saveKoutsuhi(
+            @ModelAttribute KoutsuhiForm form,
+            @RequestParam(name = "deletedKoutsuhiIds", required = false) String deletedKoutsuhiIds) {
+
+        if (deletedKoutsuhiIds != null && !deletedKoutsuhiIds.isEmpty()) {
+            for (String idStr : deletedKoutsuhiIds.split(",")) {
+                try {
+                    int id = Integer.parseInt(idStr.trim());
+                    koutsuhiService.delete(id);
+                } catch (NumberFormatException e) {
+                    System.err.println("Invalid Koutsuhi ID: " + idStr);
+                }
+            }
+        }
+
         List<Koutsuhi> list = form.getKoutsuhiList();
         if (list != null) {
             for (Koutsuhi k : list) {
-                if (k.getDate() == null) {
-                    // 日付がない行はスキップ
-                    System.out.println("日付が未入力の行をスキップ: " + k);
-                    continue;
-                }
-
-                // userId をセット（フォームから取得）
+                if (k.getDate() == null) continue;
                 k.setUserId(form.getUserId());
 
                 if (k.getKoutsuhiId() != null && k.getKoutsuhiId() > 0) {
-                    // 更新処理
-                    System.out.println("更新処理: " + k);
                     koutsuhiService.update(k);
                 } else {
-                    // 新規追加処理
-                    System.out.println("新規追加処理: " + k);
                     koutsuhiService.insertKoutsuhi(k);
                 }
             }
@@ -96,26 +102,30 @@ public class KoutsuhiKeihiController {
     }
 
     @PostMapping("/kintai/keihi/saveKeihi")
-    public String saveKeihi(@ModelAttribute KeihiForm form) {
+    public String saveKeihi(
+            @ModelAttribute KeihiForm form,
+            @RequestParam(name = "deletedKeihiIds", required = false) String deletedKeihiIds) {
+
+        if (deletedKeihiIds != null && !deletedKeihiIds.isEmpty()) {
+            for (String idStr : deletedKeihiIds.split(",")) {
+                try {
+                    int id = Integer.parseInt(idStr.trim());
+                    keihiService.delete(id);
+                } catch (NumberFormatException e) {
+                    System.err.println("Invalid Keihi ID: " + idStr);
+                }
+            }
+        }
+
         List<Keihi> list = form.getKeihiList();
         if (list != null) {
             for (Keihi k : list) {
-                if (k.getDate() == null) {
-                    // 日付がない行はスキップ
-                    System.out.println("日付が未入力の行をスキップ: " + k);
-                    continue;
-                }
-
-                // userId をセット（フォームから取得）
+                if (k.getDate() == null) continue;
                 k.setUserId(form.getUserId());
 
                 if (k.getKeihiId() != null && k.getKeihiId() > 0) {
-                    // 更新処理
-                    System.out.println("更新処理: " + k);
                     keihiService.update(k);
                 } else {
-                    // 新規追加処理
-                    System.out.println("新規追加処理: " + k);
                     keihiService.insertKeihi(k);
                 }
             }
@@ -125,15 +135,30 @@ public class KoutsuhiKeihiController {
         return "redirect:/kintai/koutsuhiKeihi/" + encodedUserId;
     }
 
+    @DeleteMapping("/kintai/keihi/deleteKoutsuhi")
+    @ResponseBody
+    public ResponseEntity<String> deleteKoutsuhi(@RequestParam int koutsuhiId) {
+        int result = koutsuhiService.delete(koutsuhiId);
+        return result > 0
+                ? ResponseEntity.ok("削除成功")
+                : ResponseEntity.badRequest().body("削除失敗");
+    }
 
-    // 月指定で交通費リスト取得（Ajax用）
+    @DeleteMapping("/kintai/keihi/deleteKeihi")
+    @ResponseBody
+    public ResponseEntity<String> deleteKeihi(@RequestParam int keihiId) {
+        int result = keihiService.delete(keihiId);
+        return result > 0
+                ? ResponseEntity.ok("削除成功")
+                : ResponseEntity.badRequest().body("削除失敗");
+    }
+
     @GetMapping("/kintai/keihi/listKoutsuhi")
     @ResponseBody
     public List<Koutsuhi> listKoutsuhiByMonth(@RequestParam String userId, @RequestParam String yearMonth) {
         return koutsuhiService.findByUserIdAndYearMonth(userId, yearMonth);
     }
 
-    // 月指定で経費リスト取得（Ajax用）
     @GetMapping("/kintai/keihi/listKeihi")
     @ResponseBody
     public List<Keihi> listKeihiByMonth(@RequestParam String userId, @RequestParam String yearMonth) {
