@@ -607,6 +607,30 @@ function saveKintaiData() {
       alert('保存成功！');
       console.log('保存されたデータ:', json);
       
+     const savedList = Array.isArray(json)
+    ? json
+    : Array.isArray(json.data)
+      ? json.data
+      : [];
+
+  savedList.forEach(newDto => {
+    const idx = kintaiListJson.findIndex(k => k.workDate === newDto.workDate);
+    if (idx !== -1) {
+      kintaiListJson[idx] = newDto;
+    } else {
+      kintaiListJson.push(newDto);
+    }
+  });
+
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+  const newData = generateDummyData(year, month);
+  createTable(newData);
+  setTimeout(setOriginalValues, 100);
+
+  editBtn.style.display = 'inline';
+  saveBtn.style.display = 'none';
+  cancelBtn.style.display = 'none';
     })
     .catch(err => {
       alert('保存失敗: ' + err.message);

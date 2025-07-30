@@ -121,7 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const tr = e.target.closest('tr');
     const inputs = tr.querySelectorAll('input, select');
     const isEditing = e.target.textContent === '取消';
-    inputs.forEach(el => el.disabled = !isEditing);
+    inputs.forEach(el => el.disabled = isEditing);
     e.target.textContent = isEditing ? '編集' : '取消';
   });
 

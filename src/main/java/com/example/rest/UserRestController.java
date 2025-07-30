@@ -87,7 +87,7 @@ public RestResult postSignup(@Validated(GroupOrder.class) SignupForm form,
 	@PutMapping("/update")
 	public int updateUser(KeihiForm form) {
 		// ユーザーを更新
-		userService.updateUserOne(form.getUserId(), form.getPassword(), form.getUserName());
+	//	userService.updateUserOne(form.getUserId(), form.getPassword(), form.getUserName());
 		return 0;
 		
 	}
