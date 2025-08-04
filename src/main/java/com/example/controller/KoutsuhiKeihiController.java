@@ -6,6 +6,8 @@ import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -57,13 +59,22 @@ public class KoutsuhiKeihiController {
         KeihiForm keihiForm = new KeihiForm();
         keihiForm.setUserId(userId);
         keihiForm.setKeihiList(keihiList);
+        
+        
+        // ログインユーザーの情報を取得
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String currentUserName = authentication.getName();
+        MUser loginUser = userService.getUserOne(currentUserName);
 
+     
+        
         model.addAttribute("koutsuhiForm", koutsuhiForm);
         model.addAttribute("keihiForm", keihiForm);
         model.addAttribute("koutsuhiList", koutsuhiList);
         model.addAttribute("keihiList", keihiList);
         model.addAttribute("sessionUserId", userId); // ← 画面側でも `${sessionUserId}` を使うように統一
-
+        model.addAttribute("sessionUserName", loginUser.getUserName());
+        
         return "kintai/koutsuhiKeihi";
     }
 

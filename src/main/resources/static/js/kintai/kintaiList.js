@@ -576,7 +576,7 @@ function saveKintaiData() {
       deductionTime: timeToDecimalString(inputs[11].value),
       kintaiStatus: inputs[12].value,
       kintaiComment: inputs[13].value,
-      updatedBy: sessionUserId || targetUserId
+      updatedBy: sessionUserName || targetUserName
     };
 
     newKintaiList.push(entry);
