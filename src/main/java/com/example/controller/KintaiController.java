@@ -28,6 +28,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import com.example.domain.kintai.model.DayInfo;
 import com.example.domain.kintai.model.Kintai;
 import com.example.domain.kintai.model.MUser;
+import com.example.domain.kintai.service.ApplicationService;
 import com.example.domain.kintai.service.CalendarService;
 import com.example.domain.kintai.service.KintaiService;
 import com.example.domain.kintai.service.UserService;
@@ -53,41 +54,48 @@ public class KintaiController {
     @Autowired
     private ModelMapper modelMapper;
 
+
     /** 勤怠一覧画面表示 */
+    @Autowired
+    private ApplicationService applicationService;
+
     @GetMapping
     public String getKintai(@ModelAttribute KintaiForm form, Model model, HttpSession session) {
 
-    	//ログインユーザーネーム表示処理追加
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String currentUserName = authentication.getName();
         MUser user = userService.getUserOne(currentUserName);
-      
- 
-        
-     // userNameを画面に渡す
-        model.addAttribute("sessionUserId", user.getUserId());
 
-
-        
-
+        // 年月を作成
         LocalDate today = LocalDate.now();
-        int year = today.getYear();
-        int month = today.getMonthValue();
-        List<DayInfo> calendarDays = calendarService.getCalendarDays(year, month);
+        String ym = today.getYear() + "-" + String.format("%02d", today.getMonthValue());
 
+        // ステータスを取得
+        String kintaiStatus = applicationService.getStatus(user.getUserId(), "KINTAI", ym);
+        String keihiStatus = applicationService.getStatus(user.getUserId(), "KEIHI", ym);
+        String koutsuhiStatus = applicationService.getStatus(user.getUserId(), "KOUTSUHI", ym);
+
+        model.addAttribute("kintaiStatus", kintaiStatus);
+        model.addAttribute("keihiStatus", keihiStatus);
+        model.addAttribute("koutsuhiStatus", koutsuhiStatus);
+
+        // セッション情報などは今のまま
+        model.addAttribute("session", Map.of("role", "ROLE_GENERAL"));
+        model.addAttribute("sessionUserId", user.getUserId());
+        model.addAttribute("sessionUserName", user.getUserName());
+
+        // カレンダー処理も今のまま
+        List<DayInfo> calendarDays = calendarService.getCalendarDays(today.getYear(), today.getMonthValue());
         model.addAttribute("user", user);
         model.addAttribute("calendarDays", calendarDays);
         model.addAttribute("kintaiForm", form);
         session.setAttribute("userName", currentUserName);
-       // model.addAttribute("sessionUserName", currentUserName);
-     // userNameを画面に渡す
-        model.addAttribute("sessionUserName", user.getUserName());
-        model.addAttribute("sessionUserId", user.getUserId());
 
-
+        //試し
+        model.addAttribute("role", "ROLE_GENERAL");
+        
         return "kintai/kintai";
     }
-
     /** 勤怠情報送信処理 */
     @PostMapping
     public String postKintai(@ModelAttribute KintaiForm form, Model model, HttpSession session) {
@@ -201,8 +209,13 @@ public class KintaiController {
         }
 
         return response;
+        
+        
+        
     }
 
+    
+    
 //    @PostMapping("/api/save")
 //    @ResponseBody
 //    public Map<String, Object> saveOrUpdateKintaiAjax(@RequestBody KintaiForm form) {

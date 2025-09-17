@@ -23,4 +23,7 @@ public interface UserService {
 	
 	/** ログインユーザー情報取得 */
 	public MUser getLoginUser(String userId);
+	
+	/** 管理者ユーザーを取得 */
+	public MUser findAdmin();
 }

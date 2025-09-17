@@ -26,52 +26,45 @@
 	<!-- ユーザー１件登録 -->
 	<insert id="insertOne">
 		insert into m_user(
-			user_id, password, user_name, birthday, age, gender, department_id, role
+		user_id, password, user_name, birthday, age, gender, department_id, role
 		)
 		values(
-			#{userId}, #{password}, #{userName}, #{birthday}, #{age}, #{gender},
-			#{departmentId}, #{role}
+		#{userId}, #{password}, #{userName}, #{birthday}, #{age}, #{gender},
+		#{departmentId}, #{role}
 		)
 	</insert>
 
 	<!-- ユーザー複数件取得 -->
-	<select id="findMany" resultMap="user">
-		select
-			m_user.user_id,
-			m_user.password,
-			m_user.user_name,
-			m_user.birthday,
-			m_user.age,
-			m_user.gender,
-			m_user.department_id,
-			m_user.role,
-			m_department.department_id,
-			m_department.department_name
-		from m_user
-		left join m_department on m_user.department_id = m_department.department_id
-		<where>
+	<select id="findMany" resultMap="user"> select m_user.user_id,
+		m_user.password, m_user.user_name, m_user.birthday, m_user.age,
+		m_user.gender, m_user.department_id, m_user.role,
+		m_department.department_id, m_department.department_name from m_user
+		left join m_department on m_user.department_id =
+		m_department.department_id <where>
 			<if test="userId != null">
 				m_user.user_id like '%' || #{userId} || '%'
 			</if>
 			<if test="userName != null">
-				<if test="userId != null"> and </if> m_user.user_name like '%' || #{userName} || '%'
-			</if>
+				<if test="userId != null"> and </if> m_user.user_name like '%'
+		|| #{userName} || '%' </if>
 		</where>
 	</select>
 
 	<!-- ユーザー１件検索 -->
 	<select id="findOne" resultMap="user">
 		select
-			m_user.user_id,
-			m_user.password,
-			m_user.user_name,
-			m_user.birthday,
-			m_user.age,
-			m_user.gender,
-			m_department.department_id,
-			m_department.department_name
+		m_user.user_id,
+		m_user.password,
+		m_user.user_name,
+		m_user.birthday,
+		m_user.age,
+		m_user.gender,
+		 m_user.role,
+		m_department.department_id,
+		m_department.department_name
 		from m_user
-		left join m_department on m_user.department_id = m_department.department_id
+		left join m_department on m_user.department_id =
+		m_department.department_id
 		where m_user.user_id = #{userId}
 	</select>
 
@@ -90,19 +83,25 @@
 	<!-- ログインユーザー情報取得 -->
 	<select id="findLoginUser" resultMap="user">
 		select
-			m_user.user_id,
-			m_user.password,
-			m_user.user_name,
-			m_user.birthday,
-			m_user.age,
-			m_user.gender,
-			m_user.department_id,
-			m_user.role,
-			m_department.department_id,
-			m_department.department_name
+		m_user.user_id,
+		m_user.password,
+		m_user.user_name,
+		m_user.birthday,
+		m_user.age,
+		m_user.gender,
+		m_user.department_id,
+		m_user.role,
+		m_department.department_id,
+		m_department.department_name
 		from m_user
-		left join m_department on m_user.department_id = m_department.department_id
+		left join m_department on m_user.department_id =
+		m_department.department_id
 		where m_user.user_id = #{userId}
 	</select>
+
+	<!-- UserMapper.xml の例 -->
+	<select id="findAdmin" resultType="com.example.domain.kintai.model.MUser">
+		SELECT * FROM m_user WHERE role = 'ROLE_ADMIN' LIMIT 1
+</select>
 
 </mapper>

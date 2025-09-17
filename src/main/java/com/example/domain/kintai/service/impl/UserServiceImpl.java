@@ -72,4 +72,10 @@ public MUser getLoginUser(String userId) {
 	return mapper.findLoginUser(userId);
 }
 
+@Override
+public MUser findAdmin() {
+    // 管理者を1人だけ取得する場合
+    return mapper.findAdmin();
+}
+
 }

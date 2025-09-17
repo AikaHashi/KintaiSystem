@@ -3,110 +3,122 @@
 
 <mapper namespace="com.example.repository.KintaiMapper">
 
-	<!-- 勤怠情報の登録 -->
-	<insert id="insertKintai"
-		parameterType="com.example.domain.kintai.model.Kintai">
-		INSERT INTO t_kintai (
-		user_id,
-		work_date,
-		updated_by,
-        updated_at,
-		planned_work_start_time,
-		planned_work_end_time,
-		planned_break_start_time,
-		planned_break_end_time,
-		actual_work_start_time,
-		actual_work_end_time,
-		actual_break_start_time,
-		actual_break_end_time,
-		scheduled_work_hours,
-		actual_work_hours,
-		overtime_hours,
-		deduction_time,
-		kintai_status,
-		kintai_comment
-		) VALUES (
-		#{userId},
-		#{workDate},
-		 #{updatedBy},
-        #{updatedAt},
-		#{plannedWorkStartTime},
-		#{plannedWorkEndTime},
-		#{plannedBreakStartTime},
-		#{plannedBreakEndTime},
-		#{actualWorkStartTime},
-		#{actualWorkEndTime},
-		#{actualBreakStartTime},
-		#{actualBreakEndTime},
-		#{scheduledWorkHours},
-		#{actualWorkHours},
-		#{overtimeHours},
-		#{deductionTime},
-		#{kintaiStatus},
-		#{kintaiComment}
-		)
-	</insert>
+    <!-- 勤怠情報の登録 -->
+    <insert id="insertKintai"
+        parameterType="com.example.domain.kintai.model.Kintai">
+        INSERT INTO t_kintai (
+            user_id,
+            work_date,
+            updated_by,
+            updated_at,
+            planned_work_start_time,
+            planned_work_end_time,
+            planned_break_start_time,
+            planned_break_end_time,
+            actual_work_start_time,
+            actual_work_end_time,
+            actual_break_start_time,
+            actual_break_end_time,
+            scheduled_work_hours,
+            actual_work_hours,
+            overtime_hours,
+            deduction_time,
+            kintai_status,
+            kintai_comment
+        ) VALUES (
+            #{userId},
+            #{workDate},
+            #{updatedBy},
+            #{updatedAt},
+            #{plannedWorkStartTime},
+            #{plannedWorkEndTime},
+            #{plannedBreakStartTime},
+            #{plannedBreakEndTime},
+            #{actualWorkStartTime},
+            #{actualWorkEndTime},
+            #{actualBreakStartTime},
+            #{actualBreakEndTime},
+            #{scheduledWorkHours,jdbcType=DECIMAL},
+            #{actualWorkHours,jdbcType=DECIMAL},
+            #{overtimeHours,jdbcType=DECIMAL},
+            #{deductionTime,jdbcType=DECIMAL},
+            #{kintaiStatus},
+            #{kintaiComment}
+        )
+    </insert>
 
-	<!-- ユーザーごとの勤怠情報一覧 -->
-	<select id="findKintaiByUserId"
-		resultType="com.example.domain.kintai.model.Kintai">
-		SELECT * FROM t_kintai
-		WHERE user_id = #{userId}
-		ORDER BY work_date DESC
-	</select>
+    <resultMap id="KintaiResultMap" type="com.example.domain.kintai.model.Kintai">
+        <result property="scheduledWorkHours" column="scheduled_work_hours" jdbcType="DECIMAL" javaType="java.math.BigDecimal"/>
+        <result property="actualWorkHours" column="actual_work_hours" jdbcType="DECIMAL" javaType="java.math.BigDecimal"/>
+        <result property="overtimeHours" column="overtime_hours" jdbcType="DECIMAL" javaType="java.math.BigDecimal"/>
+        <result property="deductionTime" column="deduction_time" jdbcType="DECIMAL" javaType="java.math.BigDecimal"/>
+    </resultMap>
 
-	<!-- ユーザー＆日付指定の勤怠取得 -->
-	<select id="findKintaiByUserAndDate"
-		resultType="com.example.domain.kintai.model.Kintai">
-		SELECT * FROM t_kintai
-		WHERE user_id = #{userId}
-		AND work_date = #{workDate}
-	</select>
+    <!-- ユーザーごとの勤怠情報一覧 -->
+    <select id="findKintaiByUserId" resultMap="KintaiResultMap">
+        SELECT * FROM t_kintai
+        WHERE user_id = #{userId}
+        ORDER BY work_date DESC
+    </select>
 
-	<!-- 勤怠の更新 -->
-	<update id="updateKintai"
-		parameterType="com.example.domain.kintai.model.Kintai">
-		UPDATE t_kintai SET
-		planned_work_start_time = #{plannedWorkStartTime},
-		planned_work_end_time = #{plannedWorkEndTime},
-		planned_break_start_time = #{plannedBreakStartTime},
-		planned_break_end_time = #{plannedBreakEndTime},
-		actual_work_start_time = #{actualWorkStartTime},
-		actual_work_end_time = #{actualWorkEndTime},
-		actual_break_start_time = #{actualBreakStartTime},
-		actual_break_end_time = #{actualBreakEndTime},
-		scheduled_work_hours = #{scheduledWorkHours},
-		actual_work_hours = #{actualWorkHours},
-		overtime_hours = #{overtimeHours},
-		deduction_time = #{deductionTime},
-		kintai_status = #{kintaiStatus},
-		kintai_comment = #{kintaiComment},
-		updated_by = #{updatedBy},
-        updated_at = CURRENT_TIMESTAMP
-		WHERE user_id = #{userId}
-		AND work_date = #{workDate}
-	</update>
+    <!-- ユーザー＆日付指定の勤怠取得 -->
+    <select id="findKintaiByUserAndDate" resultMap="KintaiResultMap">
+        SELECT * FROM t_kintai
+        WHERE user_id = #{userId}
+        AND work_date = #{workDate}
+    </select>
 
-	<!-- 勤怠の削除（任意） -->
-	<delete id="deleteKintai">
-		DELETE FROM t_kintai
-		WHERE user_id = #{userId}
-		AND work_date = #{workDate}
-	</delete>
+    <!-- 勤怠の更新 -->
+    <update id="updateKintai" parameterType="com.example.domain.kintai.model.Kintai">
+        UPDATE t_kintai SET
+            planned_work_start_time = #{plannedWorkStartTime},
+            planned_work_end_time = #{plannedWorkEndTime},
+            planned_break_start_time = #{plannedBreakStartTime},
+            planned_break_end_time = #{plannedBreakEndTime},
+            actual_work_start_time = #{actualWorkStartTime},
+            actual_work_end_time = #{actualWorkEndTime},
+            actual_break_start_time = #{actualBreakStartTime},
+            actual_break_end_time = #{actualBreakEndTime},
+            scheduled_work_hours = #{scheduledWorkHours,jdbcType=DECIMAL},
+            actual_work_hours = #{actualWorkHours,jdbcType=DECIMAL},
+            overtime_hours = #{overtimeHours,jdbcType=DECIMAL},
+            deduction_time = #{deductionTime,jdbcType=DECIMAL},
+            kintai_status = #{kintaiStatus},
+            kintai_comment = #{kintaiComment},
+            updated_by = #{updatedBy},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE user_id = #{userId}
+        AND work_date = #{workDate}
+    </update>
 
-	<select id="selectOneByUserIdAndDate" resultType="com.example.domain.kintai.model.Kintai">
-    SELECT * FROM t_kintai WHERE user_id = #{userId} AND work_date = #{workDate}
-</select>
+    <!-- 勤怠の削除 -->
+    <delete id="deleteKintai">
+        DELETE FROM t_kintai
+        WHERE user_id = #{userId}
+        AND work_date = #{workDate}
+    </delete>
 
-	<!-- 勤怠画面の既存データの変更 -->
-	<update id="update" parameterType="com.example.domain.kintai.model.Kintai">
-		UPDATE t_kintai
-		SET
-		start_time = #{startTime},
-		end_time = #{endTime},
-		break_time = #{breakTime},
-		note = #{note}
-		WHERE user_id = #{userId} AND work_date = #{workDate}
-</update>
+    <!-- 勤怠画面の既存データの変更 -->
+    <update id="update" parameterType="com.example.domain.kintai.model.Kintai">
+        UPDATE t_kintai
+        SET
+            planned_work_start_time = #{plannedWorkStartTime},
+            planned_work_end_time = #{plannedWorkEndTime},
+            planned_break_start_time = #{plannedBreakStartTime},
+            planned_break_end_time = #{plannedBreakEndTime},
+            actual_work_start_time = #{actualWorkStartTime},
+            actual_work_end_time = #{actualWorkEndTime},
+            actual_break_start_time = #{actualBreakStartTime},
+            actual_break_end_time = #{actualBreakEndTime},
+            scheduled_work_hours = #{scheduledWorkHours,jdbcType=DECIMAL},
+            actual_work_hours = #{actualWorkHours,jdbcType=DECIMAL},
+            overtime_hours = #{overtimeHours,jdbcType=DECIMAL},
+            deduction_time = #{deductionTime,jdbcType=DECIMAL},
+            kintai_status = #{kintaiStatus},
+            kintai_comment = #{kintaiComment},
+            updated_by = #{updatedBy},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE user_id = #{userId} AND work_date = #{workDate}
+    </update>
 
 </mapper>

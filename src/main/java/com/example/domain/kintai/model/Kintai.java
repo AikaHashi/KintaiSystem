@@ -34,4 +34,3 @@ public class Kintai {
     private String kintaiStatus;
     private String kintaiComment;
 }
-

@@ -11,21 +11,20 @@ import com.example.domain.kintai.model.Kintai;
 @Mapper
 public interface KintaiMapper {
 
-    /** 勤怠情報の登録 */
-    public int insertKintai(Kintai kintai);
+    int insertKintai(Kintai kintai);
 
-    /** ユーザーごとの勤怠情報を一覧取得 */
-    public List<Kintai> findKintaiByUserId(String userId);
+    List<Kintai> findKintaiByUserId(String userId);
 
-    /** 勤怠1件取得（日付指定） */
-    public Kintai findKintaiByUserAndDate(@Param("userId") String userId, @Param("workDate") LocalDate workDate);
+    Kintai findKintaiByUserAndDate(@Param("userId") String userId, @Param("workDate") LocalDate workDate);
 
-    /** 勤怠の更新 */
-    public int updateKintai(Kintai kintai);
+    int updateKintai(Kintai kintai);
 
-    /** 勤怠削除（任意） */
-    public int deleteKintai(@Param("userId") String userId, @Param("workDate") LocalDate workDate);
-    
-    Kintai selectOneByUserIdAndDate(@Param("userId") String userId, @Param("workDate") LocalDate workDate);
+    int deleteKintai(@Param("userId") String userId, @Param("workDate") LocalDate workDate);
+
+    /** 追加 */
+    default Kintai selectOneByUserIdAndDate(String userId, LocalDate workDate) {
+        return findKintaiByUserAndDate(userId, workDate);
+    }
+
     void update(Kintai kintai);
 }

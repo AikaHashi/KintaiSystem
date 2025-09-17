@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.repository.ApplicationMapper">
+
+    <!-- ステータス取得（既存互換） -->
+    <select id="getStatus" resultType="String">
+        SELECT status
+        FROM t_application
+        WHERE user_id = #{userId}
+          AND category = #{category}
+          AND year_month = #{yearMonth}
+    </select>
+
+    <!-- Application エンティティで1件取得 -->
+    <select id="findByUserIdAndCategoryAndYearMonth" resultType="com.example.domain.kintai.model.Application">
+        SELECT *
+        FROM t_application
+        WHERE user_id = #{userId}
+          AND category = #{category}
+          AND year_month = #{yearMonth}
+    </select>
+
+    <!-- 新規登録 -->
+    <insert id="insert" parameterType="com.example.domain.kintai.model.Application">
+        INSERT INTO t_application
+        (user_id, category, year_month, status, comment, created_at, updated_at)
+        VALUES
+        (#{userId}, #{category}, #{yearMonth}, #{status}, #{comment}, #{createdAt}, #{updatedAt})
+    </insert>
+
+    <!-- 更新 -->
+    <update id="update" parameterType="com.example.domain.kintai.model.Application">
+        UPDATE t_application
+        SET status = #{status},
+            comment = #{comment},
+            updated_at = #{updatedAt}
+        WHERE application_id = #{applicationId}
+    </update>
+
+</mapper>

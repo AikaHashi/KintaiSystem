@@ -37,13 +37,37 @@
     <div class="header border-bottom mb-4">
         <h1 class="h2">勤怠</h1>
     </div>
+<!--	<p>現在のrole: <span th:text="${role}">未設定</span></p>-->
+<!--	 申請フロー -->
+<!--	<div id="applicationContainer" class="mt-4">-->
+<!--	    <h2>申請フロー</h2>-->
+	  
 	
-	<!-- 勤怠テーブル -->
+<!--	     一般ユーザー -->
+<!--		<div th:if="${role == 'ROLE_GENERAL'}">-->
+<!--		    <form th:action="@{/kintai/apply}" method="post">-->
+<!--		        <button type="submit">申請</button>-->
+<!--		    </form>-->
+<!--		</div>-->
+	
+<!--	     管理者 -->
+<!--		<div th:if="${role == 'ROLE_ADMIN'}">-->
+<!--		    <form th:action="@{/kintai/approve}" method="post">-->
+<!--		        <button type="submit">承認</button>-->
+<!--		    </form>-->
+<!--		    <form th:action="@{/kintai/reject}" method="post">-->
+<!--		        <button type="submit">差戻</button>-->
+<!--		    </form>-->
+<!--		</div>-->
+<!--	</div>-->
+	
 	<div id="kintai-table-container" class="mt-4"></div>
 
     <!-- カレンダー -->
     <div id="kintai-calendar" class="mb-4"></div>
-
 </div>
+
+<p>現在のrole: <span th:text="${role}">未設定</span></p>
+
 </body>
 </html>

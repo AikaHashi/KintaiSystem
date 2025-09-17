@@ -27,12 +27,12 @@ public class SecurityConfig {
     /** セキュリティ対象外設定（静的リソースなど） */
     @Bean
     public WebSecurityCustomizer webSecurityCustomizer() {
-        return (web) -> web.ignoring()
+        return web -> web.ignoring()
                 .requestMatchers(
                         "/webjars/**",
                         "/css/**",
                         "/js/**",
-                        "/images/**",               // 静的画像ファイル
+                        "/images/**",
                         "/h2-console/**",
                         "/favicon.ico",
                         "/.well-known/**"
@@ -42,38 +42,45 @@ public class SecurityConfig {
     /** セキュリティ設定 */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        return http
-                .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers(
-                                "/login",
-                                "/kintai/signup",         
-                                "/kintai/signup/rest",  
-                                "/webjars/**",
-                                "/css/**",
-                                "/js/**",
-                                "/images/**",
-                                "/h2-console/**",
-                                "/favicon.ico",
-                                "/.well-known/**"
-                        ).permitAll()
-                        .requestMatchers("/admin").hasAuthority("ROLE_ADMIN")
-                        .requestMatchers("/kintai/**").authenticated() // ★ kintai配下は認証が必要
-                        .anyRequest().authenticated()
-                )
-                .formLogin(form -> form
-                        .loginPage("/login")
-                        .loginProcessingUrl("/login")
-                        .usernameParameter("userId")
-                        .passwordParameter("password")
-                        .successHandler(authenticationSuccessHandler())
-                        .failureUrl("/login?error")
-                        .permitAll()
-                )
-                .logout(logout -> logout
-                        .logoutSuccessUrl("/login?logout")
-                        .permitAll())
-                .csrf(csrf -> csrf.disable())
-                .build();
+        http
+            .authorizeHttpRequests(authorize -> authorize
+                // ログイン・サインアップは誰でもアクセス可能
+                .requestMatchers(
+                        "/login",
+                        "/kintai/signup",
+                        "/kintai/signup/rest"
+                ).permitAll()
+                // 管理者専用ページ
+                .requestMatchers("/admin").hasAuthority("ROLE_ADMIN")
+                // Ajax 用 approve/reject/apply は認証必須だが、セッションで JSON が返る
+                .requestMatchers(
+                        "/kintai/koutsuhi/apply",
+                        "/kintai/koutsuhi/approve",
+                        "/kintai/koutsuhi/reject"
+                ).authenticated()
+                // API は静的なものや外部呼び出し用
+                .requestMatchers("/kintai/api/**").permitAll()
+                // それ以外は認証必須
+                .requestMatchers("/kintai/**").authenticated()
+                .anyRequest().authenticated()
+            )
+            .formLogin(form -> form
+                .loginPage("/login")
+                .loginProcessingUrl("/login")
+                .usernameParameter("userId")
+                .passwordParameter("password")
+                .successHandler(authenticationSuccessHandler())
+                .failureUrl("/login?error")
+                .permitAll()
+            )
+            .logout(logout -> logout
+                .logoutSuccessUrl("/login?logout")
+                .permitAll()
+            )
+            // CSRF無効（Ajax 用）
+            .csrf(csrf -> csrf.disable());
+
+        return http.build();
     }
 
     /** パスワードエンコーダ設定 */
@@ -84,12 +91,10 @@ public class SecurityConfig {
 
     /** 認証マネージャ設定 */
     @Bean
-    public AuthenticationManager authenticationManager(HttpSecurity http, PasswordEncoder passwordEncoder)
-            throws Exception {
+    public AuthenticationManager authenticationManager(HttpSecurity http) throws Exception {
         AuthenticationManagerBuilder authBuilder = http.getSharedObject(AuthenticationManagerBuilder.class);
-        authBuilder
-                .userDetailsService(userDetailsService)
-                .passwordEncoder(passwordEncoder);
+        authBuilder.userDetailsService(userDetailsService)
+                   .passwordEncoder(passwordEncoder());
         return authBuilder.build();
     }
 

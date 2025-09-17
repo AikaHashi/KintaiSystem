@@ -1,0 +1,17 @@
+2025-09-01 21:48:25.090281+09:00 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLSyntaxErrorException: Table "M_USER" not found (this database is empty); SQL statement:
+select
+		m_user.user_id,
+		m_user.password,
+		m_user.user_name,
+		m_user.birthday,
+		m_user.age,
+		m_user.gender,
+		m_user.department_id,
+		m_user.role,
+		m_department.department_id,
+		m_department.department_name
+		from m_user
+		left join m_department on m_user.department_id =
+		m_department.department_id
+		where m_user.user_id = ? [42104-232]

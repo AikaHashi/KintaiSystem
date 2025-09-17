@@ -5,14 +5,15 @@
 
 	<!-- 登録 -->
 	<insert id="insertKoutsuhi"
-		parameterType="com.example.domain.kintai.model.Koutsuhi">
-		INSERT INTO t_koutsuhi (
-		user_id, date, method, departure, arrival, via, amount, note
-		) VALUES (
-		#{userId}, #{date}, #{method}, #{departure}, #{arrival}, #{via},
-		#{amount}, #{note}
-		)
-	</insert>
+    parameterType="com.example.domain.kintai.model.Koutsuhi"
+    useGeneratedKeys="true" keyProperty="koutsuhiId">
+    INSERT INTO t_koutsuhi (
+        user_id, date, method, departure, arrival, via, amount, note
+    ) VALUES (
+        #{userId}, #{date}, #{method}, #{departure}, #{arrival}, #{via},
+        #{amount}, #{note}
+    )
+</insert>
 
 	<!-- 一覧取得（userId指定） -->
 	<select id="findByUserId"
@@ -50,11 +51,11 @@
 	</delete>
 
 	<select id="findByUserIdAndYearMonth"
-		resultType="com.example.domain.kintai.model.Koutsuhi">
-		SELECT * FROM t_koutsuhi
-		WHERE user_id = #{userId}
-		AND FORMATDATETIME(date, 'yyyy-MM') = #{yearMonth}
-		ORDER BY date DESC;
-	</select>
+        resultType="com.example.domain.kintai.model.Koutsuhi">
+    SELECT * FROM t_koutsuhi
+      WHERE user_id = #{userId}
+      AND FORMATDATETIME(date, 'yyyy-MM') = #{yearMonth}
+    ORDER BY date DESC;
+</select>
 
 </mapper>

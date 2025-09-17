@@ -1,3 +1,4 @@
+
 // ▼ ログインユーザー（社員名）
 //const currentEmployee = '田中太郎';
 //const targetUserName = document.getElementById('userSelect').value;
@@ -7,270 +8,186 @@ let currentDate = new Date();
 
 // ▼ 時間文字列（"HH:MM"）を分数に変換
 function timeStrToMinutes(timeStr) {
-  try {
-    const str = String(timeStr);
-    const [h, m] = str.split(':').map(Number);
-    return h * 60 + m;
-  } catch (e) {
-    console.error("Error in timeStrToMinutes. timeStr=", timeStr, "typeof:", typeof timeStr);
-    throw e;
-  }
+	try {
+		const str = String(timeStr);
+		const [h, m] = str.split(':').map(Number);
+		return h * 60 + m;
+	} catch (e) {
+		console.error("Error in timeStrToMinutes. timeStr=", timeStr, "typeof:", typeof timeStr);
+		throw e;
+	}
 }
 
 // ▼ 分数を時間文字列（"HH:MM"）に変換
 function minutesToTimeStr(minutes) {
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+	const h = Math.floor(minutes / 60);
+	const m = minutes % 60;
+	return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
 }
 
-// ▼ 勤怠データ生成
+
+// ▼ 勤怠データ生成（出勤・休暇日数・時間集計込み）
 function generateDummyData(year, month) {
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const data = [];
+	const daysInMonth = new Date(year, month + 1, 0).getDate();
+	const data = [];
 
-  const counts = {
-    attendance: 0, absent: 0, paidLeave: 0, substituteLeave: 0,
-    compensatoryLeave: 0, bereavementLeave: 0, sickLeave: 0,
-    maternityLeave: 0, childcareLeave: 0, otherLeave: 0,
-    scheduledHours: 0, actualHours: 0, breakTime: 0,
-    overtime: 0, deductions: 0, holidayHours: 0
-  };
+	const counts = {
+		attendance: 0, absent: 0, paidLeave: 0, substituteLeave: 0,
+		compensatoryLeave: 0, bereavementLeave: 0, sickLeave: 0,
+		maternityLeave: 0, childcareLeave: 0, otherLeave: 0,
+		scheduledHours: 0, actualHours: 0, breakTime: 0,
+		overtime: 0, deductions: 0, holidayHours: 0
+	};
 
-  const kintaiMap = {};
-  if (Array.isArray(kintaiListJson)) {
-    kintaiListJson.forEach(dto => {
-      if (dto.workDate) kintaiMap[dto.workDate] = dto;
-    });
-  }
+	const kintaiMap = {};
+	if (Array.isArray(kintaiListJson)) {
+		kintaiListJson.forEach(dto => {
+			if (dto.workDate) kintaiMap[dto.workDate] = dto;
+		});
+	}
 
-  for (let day = 1; day <= daysInMonth; day++) {
-    const date = new Date(year, month, day, 12);
-    const dateStr = date.toISOString().split('T')[0];
-    const dto = kintaiMap[dateStr] || {};
+	for (let day = 1; day <= daysInMonth; day++) {
+		const date = new Date(year, month, day, 12);
+		const dateStr = date.toISOString().split('T')[0];
+		const dto = kintaiMap[dateStr] || {};
 
-    const plannedWorkMin = (dto.plannedWorkStartTime && dto.plannedWorkEndTime)
-      ? timeStrToMinutes(dto.plannedWorkEndTime) - timeStrToMinutes(dto.plannedWorkStartTime)
-      : 0;
+		const plannedWorkMin = (dto.plannedWorkStartTime && dto.plannedWorkEndTime)
+			? timeStrToMinutes(dto.plannedWorkEndTime) - timeStrToMinutes(dto.plannedWorkStartTime)
+			: 0;
 
-    const plannedBreakMin = (dto.plannedBreakStartTime && dto.plannedBreakEndTime)
-      ? timeStrToMinutes(dto.plannedBreakEndTime) - timeStrToMinutes(dto.plannedBreakStartTime)
-      : 0;
+		const plannedBreakMin = (dto.plannedBreakStartTime && dto.plannedBreakEndTime)
+			? timeStrToMinutes(dto.plannedBreakEndTime) - timeStrToMinutes(dto.plannedBreakStartTime)
+			: 0;
 
-    const scheduledMin = plannedWorkMin - plannedBreakMin;
+		let scheduledMin = plannedWorkMin - plannedBreakMin;
 
-    const actualWorkMin = (dto.actualWorkStartTime && dto.actualWorkEndTime)
-      ? timeStrToMinutes(dto.actualWorkEndTime) - timeStrToMinutes(dto.actualWorkStartTime)
-      : 0;
+		const actualWorkMin = (dto.actualWorkStartTime && dto.actualWorkEndTime)
+			? timeStrToMinutes(dto.actualWorkEndTime) - timeStrToMinutes(dto.actualWorkStartTime)
+			: 0;
 
-    const actualBreakMin = (dto.actualBreakStartTime && dto.actualBreakEndTime)
-      ? timeStrToMinutes(dto.actualBreakEndTime) - timeStrToMinutes(dto.actualBreakStartTime)
-      : 0;
+		const actualBreakMin = (dto.actualBreakStartTime && dto.actualBreakEndTime)
+			? timeStrToMinutes(dto.actualBreakEndTime) - timeStrToMinutes(dto.actualBreakStartTime)
+			: 0;
 
-    const actualMin = actualWorkMin - actualBreakMin;
+		const actualMin = actualWorkMin - actualBreakMin;
 
-    let stateDeductMin = 0;
-    if (dto.kintaiStatus === 'paid_leave_half') {
-      stateDeductMin = scheduledMin / 2;
-    } else if (dto.kintaiStatus && dto.kintaiStatus !== 'nothing') {
-      stateDeductMin = scheduledMin;
-    }
+		// ステータス別調整
+		let adjustedActualMin = actualMin;
+		let adjustedBreakMin = actualBreakMin;
+		let adjustedOvertimeMin = Math.max(0, actualMin - scheduledMin);
+		let holidayMinutes = 0;
+		let deductionMin = 0;
 
-    // 出勤・休暇日数集計（省略：既存コードそのまま）
+		switch (dto.kintaiStatus) {
+			case 'paid_leave_full':
+			case 'substitute_leave':
+			case 'compensatory_leave':
+			case 'work_related_illness':
+			case 'maternity_leave':
+			case 'childcare_leave':
+			case 'other_leave':
+				adjustedActualMin = 0;
+				adjustedBreakMin = 0;
+				adjustedOvertimeMin = 0;
+				deductionMin = 0;
+				scheduledMin = 0; // ← 全休/代休時は所定時間も0に
+				break;
+			case 'paid_leave_half':
+				adjustedActualMin = actualMin / 2;
+				adjustedBreakMin = 0;
+				adjustedOvertimeMin = 0;
+				deductionMin = scheduledMin - adjustedActualMin;
+				break;
+			default:
+				deductionMin = Math.max(0, scheduledMin - adjustedActualMin);
+		}
 
-    switch (dto.kintaiStatus) {
-      case 'paid_leave_full':
-        counts.paidLeave += 1;
-        break;
-      case 'paid_leave_half':
-        counts.paidLeave += 0.5;
-        break;
-      case 'substitute_leave':
-      case 'compensatory_leave':
-      case 'work_related_illness':
-      case 'maternity_leave':
-      case 'childcare_leave':
-      case 'other_leave': {
-        if (scheduledMin > 0) {
-          const ratio = actualMin / scheduledMin;
-          let value = 0;
-          if (ratio === 0) {
-            value = 1;
-          } else if (ratio > 0 && ratio <= 0.5) {
-            value = 0.5;
-          } else {
-            value = 1;
-          }
-          switch (dto.kintaiStatus) {
-            case 'substitute_leave':
-              counts.substituteLeave += value;
-              break;
-            case 'compensatory_leave':
-              counts.compensatoryLeave += value;
-              break;
-            case 'work_related_illness':
-              counts.sickLeave += value;
-              break;
-            case 'maternity_leave':
-              counts.maternityLeave += value;
-              break;
-            case 'childcare_leave':
-              counts.childcareLeave += value;
-              break;
-            case 'other_leave':
-              counts.otherLeave += value;
-              break;
-          }
-        }
-        break;
-      }
-      case 'bereavement_leave':
-        counts.bereavementLeave += 1;
-        break;
-    }
+		const entry = {
+			date: dateStr,
+			userName: dto.userName || targetUserName,
+			updatedBy: dto.updatedBy || '',
+			plannedWorkStartTime: dto.plannedWorkStartTime || '',
+			plannedWorkEndTime: dto.plannedWorkEndTime || '',
+			plannedBreakStartTime: dto.plannedBreakStartTime || '',
+			plannedBreakEndTime: dto.plannedBreakEndTime || '',
+			actualWorkStartTime: dto.actualWorkStartTime || '',
+			actualWorkEndTime: dto.actualWorkEndTime || '',
+			actualBreakStartTime: dto.actualBreakStartTime || '',
+			actualBreakEndTime: dto.actualBreakEndTime || '',
+			scheduledWorkHours: minutesToTimeStr(scheduledMin),
+			actualWorkHours: minutesToTimeStr(adjustedActualMin),
+			overtimeHours: minutesToTimeStr(adjustedOvertimeMin),
+			deductionTime: minutesToTimeStr(deductionMin),
+			kintaiStatus: dto.kintaiStatus || 'nothing',
+			kintaiComment: dto.kintaiComment || ''
+		};
 
-    // ▼ 時間集計ロジック
+		data.push(entry);
 
-    // actualHours の計算
-    let adjustedActualMin;
-    if (dto.kintaiStatus === 'paid_leave_full') {
-      adjustedActualMin = 0;
-    } else if (dto.kintaiStatus === 'paid_leave_half') {
-      adjustedActualMin = actualMin / 2;
-    } else if (dto.kintaiStatus && dto.kintaiStatus !== 'nothing') {
-      if (scheduledMin > 0 && actualMin >= 0 && actualMin <= scheduledMin / 2) {
-        adjustedActualMin = actualMin / 2;
-      } else {
-        adjustedActualMin = actualMin;
-      }
-    } else {
-      adjustedActualMin = actualMin;
-    }
+		// 集計加算
+		counts.scheduledHours += scheduledMin / 60;
+		counts.actualHours += adjustedActualMin / 60;
+		counts.breakTime += adjustedBreakMin / 60;
+		counts.overtime += adjustedOvertimeMin / 60;
+		counts.deductions += deductionMin / 60;
+		counts.holidayHours += holidayMinutes / 60;
 
-    // breakTime の計算
-    const adjustedBreakMin = dto.kintaiStatus && dto.kintaiStatus !== 'nothing' ? 0 : actualBreakMin;
 
-    // overtime の計算
-    const adjustedOvertimeMin = dto.kintaiStatus && dto.kintaiStatus !== 'nothing' ? 0 : Math.max(0, actualMin - scheduledMin);
+	}
 
-   // holidayHours の計算（分単位で計算し、最後に時間に直して加算）
-let holidayMinutes = 0;
+	// 出勤日数・欠勤日数計算
+	let totalAbsent =
+		counts.paidLeave +
+		counts.substituteLeave +
+		counts.compensatoryLeave +
+		counts.sickLeave +
+		counts.maternityLeave +
+		counts.childcareLeave +
+		counts.otherLeave +
+		counts.bereavementLeave;
 
-if (dto.kintaiStatus === 'paid_leave_full') {
-  holidayMinutes = actualMin;
+	let totalAttendance = 0;
+	data.forEach(e => {
+		if (e.kintaiStatus === 'nothing' && timeStrToMinutes(e.actualWorkHours) > 0) totalAttendance += 1;
+	});
 
-} else if (dto.kintaiStatus === 'paid_leave_half') {
-  holidayMinutes = actualMin / 2;
+	counts.attendance = totalAttendance;
+	counts.absent = totalAbsent;
 
-} else if (dto.kintaiStatus && dto.kintaiStatus !== 'nothing') {
-  if (scheduledMin > 0 && actualMin >= 0 && actualMin <= scheduledMin / 2) {
-    holidayMinutes = actualMin / 2;
-  } else {
-    holidayMinutes = actualMin;
-  }
+	// 結果反映
+	document.getElementById('attendanceDays').textContent = counts.attendance;
+	document.getElementById('absentDays').textContent = counts.absent;
+	document.getElementById('paidLeaveDays').textContent = counts.paidLeave;
+	document.getElementById('substituteLeaveDays').textContent = counts.substituteLeave;
+	document.getElementById('compensatoryLeaveDays').textContent = counts.compensatoryLeave;
+	document.getElementById('bereavementLeaveDays').textContent = counts.bereavementLeave;
+	document.getElementById('sickLeaveDays').textContent = counts.sickLeave;
+	document.getElementById('maternityLeaveDays').textContent = counts.maternityLeave;
+	document.getElementById('childcareLeaveDays').textContent = counts.childcareLeave;
+	document.getElementById('otherLeaveDays').textContent = counts.otherLeave;
+	document.getElementById('scheduledHours').textContent = `${counts.scheduledHours.toFixed(2)}h`;
+	document.getElementById('actualHours').textContent = `${counts.actualHours.toFixed(2)}h`;
+	document.getElementById('breakTime').textContent = `${counts.breakTime.toFixed(2)}h`;
+	document.getElementById('overtime').textContent = `${counts.overtime.toFixed(2)}h`;
+	document.getElementById('deductions').textContent = `${counts.deductions.toFixed(2)}h`;
+	document.getElementById('holidayHours').textContent = `${counts.holidayHours.toFixed(2)}h`;
+
+	return data;
 }
-// それ以外（nothing や undefined）は 0 のまま
-
-    const overtimeMin = Math.max(0, actualMin - scheduledMin);
-    const deductionMin = Math.max(0, scheduledMin - actualMin - stateDeductMin);
-
-    const entry = {
-      date: dateStr,
-      userName: dto.userName || targetUserName,
-      updatedBy: dto.updatedBy || '',
-      plannedWorkStartTime: dto.plannedWorkStartTime || '',
-      plannedWorkEndTime: dto.plannedWorkEndTime || '',
-      plannedBreakStartTime: dto.plannedBreakStartTime || '',
-      plannedBreakEndTime: dto.plannedBreakEndTime || '',
-      actualWorkStartTime: dto.actualWorkStartTime || '',
-      actualWorkEndTime: dto.actualWorkEndTime || '',
-      actualBreakStartTime: dto.actualBreakStartTime || '',
-      actualBreakEndTime: dto.actualBreakEndTime || '',
-      scheduledWorkHours: minutesToTimeStr(scheduledMin),
-      actualWorkHours: minutesToTimeStr(actualMin),
-      overtimeHours: minutesToTimeStr(overtimeMin),
-      deductionTime: minutesToTimeStr(deductionMin),
-      kintaiStatus: dto.kintaiStatus || 'nothing',
-      kintaiComment: dto.kintaiComment || ''
-    };
-
-    data.push(entry);
-
-    // 集計への加算
-    counts.scheduledHours += scheduledMin / 60;
-    counts.actualHours += adjustedActualMin / 60;
-    counts.breakTime += adjustedBreakMin / 60;
-    counts.overtime += adjustedOvertimeMin / 60;
-    counts.deductions += deductionMin / 60;
-    counts.holidayHours += holidayMinutes / 60;
-  }
-
- // 実働がある 'nothing' ステータスを出勤扱いに含める
-let statusNothingAttendanceCount = 0;
-
-data.forEach(entry => {
-  if (entry.kintaiStatus === 'nothing') {
-    const actualMinutes = timeStrToMinutes(entry.actualWorkHours);
-    if (actualMinutes > 0) {
-      statusNothingAttendanceCount++;
-    }
-  }
-});
-
-const totalAbsent =
-  counts.paidLeave +
-  counts.substituteLeave +
-  counts.compensatoryLeave +
-  counts.sickLeave +
-  counts.maternityLeave +
-  counts.childcareLeave +
-  counts.otherLeave;
-
-const statusNothingCount = data.filter(entry => entry.kintaiStatus === 'nothing').length;
-
-// 出勤日数：実働がある 'nothing' は attendance に加算、それ以外は欠勤扱い
-counts.absent = totalAbsent;
-counts.attendance = daysInMonth - totalAbsent - (statusNothingCount - statusNothingAttendanceCount);
-
-
-  // 結果反映
-  document.getElementById('attendanceDays').textContent = counts.attendance;
-  document.getElementById('absentDays').textContent = counts.absent;
-  document.getElementById('paidLeaveDays').textContent = counts.paidLeave;
-  document.getElementById('substituteLeaveDays').textContent = counts.substituteLeave;
-  document.getElementById('compensatoryLeaveDays').textContent = counts.compensatoryLeave;
-  document.getElementById('bereavementLeaveDays').textContent = counts.bereavementLeave;
-  document.getElementById('sickLeaveDays').textContent = counts.sickLeave;
-  document.getElementById('maternityLeaveDays').textContent = counts.maternityLeave;
-  document.getElementById('childcareLeaveDays').textContent = counts.childcareLeave;
-  document.getElementById('otherLeaveDays').textContent = counts.otherLeave;
-
-  document.getElementById('scheduledHours').textContent = `${counts.scheduledHours.toFixed(2)}h`;
-  document.getElementById('actualHours').textContent = `${counts.actualHours.toFixed(2)}h`;
-  document.getElementById('breakTime').textContent = `${counts.breakTime.toFixed(2)}h`;
-  document.getElementById('overtime').textContent = `${counts.overtime.toFixed(2)}h`;
-  document.getElementById('deductions').textContent = `${counts.deductions.toFixed(2)}h`;
-  document.getElementById('holidayHours').textContent = `${counts.holidayHours.toFixed(2)}h`;
-
-  return data;
-}
-
-
-
 // ▼ 勤怠テーブルの生成
 function createTable(data) {
-  // 古いテーブルを削除
-  const existingTable = document.getElementById('kintaiTable');
-  if (existingTable) {
-    existingTable.remove();
-  }
+	// 古いテーブルを削除
+	const existingTable = document.getElementById('kintaiTable');
+	if (existingTable) {
+		existingTable.remove();
+	}
 
-  const table = document.createElement('table');
-  table.id = 'kintaiTable';
-  const thead = document.createElement('thead');
-  const tbody = document.createElement('tbody');
+	const table = document.createElement('table');
+	table.id = 'kintaiTable';
+	const thead = document.createElement('thead');
+	const tbody = document.createElement('tbody');
 
-  thead.innerHTML = `
+	thead.innerHTML = `
     <tr>
       <th rowspan="2">日付</th>
       <th rowspan="2">社員名</th>
@@ -285,13 +202,10 @@ function createTable(data) {
       <th>時間外</th><th>控除</th><th>状態</th><th>特記事項</th>
     </tr>
   `;
-data.forEach(entry => {
-  console.log("entryの中身:", entry);
-});
-  data.forEach(entry => {
-	
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
+
+	data.forEach(entry => {
+		const tr = document.createElement('tr');
+		tr.innerHTML = `
       <td>${entry.date}</td>
       <td>${entry.userName}</td>
       <td>${entry.updatedBy}</td>
@@ -334,107 +248,69 @@ data.forEach(entry => {
       </td>
       <td><input type="text" name="kintaiComment" value="${entry.kintaiComment}" disabled/></td>
     `;
-    tbody.appendChild(tr);
-    table.appendChild(thead);  // ← これが必要
-table.appendChild(tbody);  // ← これも必要
- document.getElementById('tableContainer').appendChild(table); // 必ずDOMに追加
-  });
+		tbody.appendChild(tr);
+	});
 
-//  table.appendChild(thead);
-//  table.appendChild(tbody);
-
-//  const container = document.getElementById('tableContainer');
-//  container.innerHTML = '';
-//  container.appendChild(table);
+	// ループ外で append
+	table.appendChild(thead);
+	table.appendChild(tbody);
+	document.getElementById('tableContainer').appendChild(table);
 }
 
-
-
+// ボタン要素
 const editBtn = document.getElementById('editBtn');
 const saveBtn = document.getElementById('saveBtn');
 const cancelBtn = document.getElementById('cancelBtn');
 
 let originalData = [];
 
-// 編集ボタン押下時の処理（originalDataを行単位の配列で保存）
+// 編集開始
+// ▼ 編集開始
 editBtn.addEventListener('click', () => {
-  const trList = document.querySelectorAll('#kintaiTable tbody tr');
+	const trList = document.querySelectorAll('#kintaiTable tbody tr');
 
-  originalData = Array.from(trList).map(tr => {
-    const inputs = tr.querySelectorAll('input, select');
-    return Array.from(inputs).map(input => input.value);
-  });
+	// 元データ保持
+	originalData = Array.from(trList).map(tr => {
+		const inputs = tr.querySelectorAll('input, select');
+		return Array.from(inputs).map(input => input.value);
+	});
 
-  console.log('originalData保存:', originalData);
+	// 編集可能化
+	trList.forEach(tr => {
+		const inputs = tr.querySelectorAll('input, select');
+		inputs.forEach(input => {
+			if (!input.readOnly) input.disabled = false;
+		});
+	});
 
-  trList.forEach(tr => {
-    const inputs = tr.querySelectorAll('input, select');
-    inputs.forEach(input => {
-      if (!input.readOnly) input.disabled = false;
-    });
-
-    // もしステータス選択のイベントリスナーが必要ならここに
-  });
-
-  editBtn.style.display = 'none';
-  saveBtn.style.display = 'inline';
-  cancelBtn.style.display = 'inline';
+	editBtn.style.display = 'none';
+	saveBtn.style.display = 'inline';
+	cancelBtn.style.display = 'inline';
 });
 
-// 編集開始時
-editBtn.addEventListener('click', () => {
-  const trList = document.querySelectorAll('#kintaiTable tbody tr');
-
-  // 2次元配列で保存
-  originalData = Array.from(trList).map(tr => {
-    const inputs = tr.querySelectorAll('input, select');
-    return Array.from(inputs).map(input => input.value);
-  });
-
-  // 全ての入力欄を編集可能にする
-  trList.forEach(tr => {
-    const inputs = tr.querySelectorAll('input, select');
-    inputs.forEach(input => {
-      if (!input.readOnly) input.disabled = false;
-    });
-  });
-
-  editBtn.style.display = 'none';
-  saveBtn.style.display = 'inline';
-  cancelBtn.style.display = 'inline';
-});
-
-// キャンセル時
+// ▼ キャンセル
 cancelBtn.addEventListener('click', () => {
-  const trList = document.querySelectorAll('#kintaiTable tbody tr');
+	const trList = document.querySelectorAll('#kintaiTable tbody tr');
 
-  trList.forEach((tr, rowIndex) => {
-    const inputs = tr.querySelectorAll('input, select');
+	trList.forEach((tr, rowIndex) => {
+		const inputs = tr.querySelectorAll('input, select');
+		inputs.forEach((input, idx) => {
+			if (originalData && originalData[rowIndex] && originalData[rowIndex][idx] !== undefined) {
+				input.value = originalData[rowIndex][idx];
+			}
+			input.disabled = true;
+		});
+	});
 
-    inputs.forEach((input, idx) => {
-      if (originalData && originalData[rowIndex] && originalData[rowIndex][idx] !== undefined) {
-        input.value = originalData[rowIndex][idx];
-      }
-      input.disabled = true;
-    });
-  });
+	editBtn.style.display = 'inline';
+	saveBtn.style.display = 'none';
+	cancelBtn.style.display = 'none';
+	setOriginalValues(); // 安全のため再設定
 
-  editBtn.style.display = 'inline';
-  saveBtn.style.display = 'none';
-  cancelBtn.style.display = 'none';
+	// 入力イベントを付与
+	attachRecalcEvents();
 });
-//saveBtn.addEventListener('click', () => {
-//	const inputs = document.querySelectorAll('input');
-//	inputs.forEach(input => {
-//		if (!input.readOnly) input.disabled = true;
-//	});
-//
-//	// ここで保存処理（API送信など）を行ってもよい
-//
-//	editBtn.style.display = 'inline';
-//	saveBtn.style.display = 'none';
-//	cancelBtn.style.display = 'none';
-//});
+
 
 
 // ▼ 現在の月表示更新
@@ -451,200 +327,422 @@ function refreshTable() {
 	const month = currentDate.getMonth();
 	const data = generateDummyData(year, month);
 	createTable(data);
-	
-//	calculateLeaveSummary(data);  
+
+	//	calculateLeaveSummary(data);  
 }
 
 // 例: "08:30" → "8.50" などの小数時間に変換
 function timeToDecimalString(timeStr) {
-  if (!timeStr || !timeStr.includes(':')) return "0.00";
-  const [hours, minutes] = timeStr.split(':').map(Number);
-  const decimal = hours + minutes / 60;
-  return decimal.toFixed(2);  // 例: 8.50
+	if (!timeStr || !timeStr.includes(':')) return "0.00";
+	const [hours, minutes] = timeStr.split(':').map(Number);
+	const decimal = hours + minutes / 60;
+	return decimal.toFixed(2);  // 例: 8.50
 }
 
 
 function setOriginalValues() {
-  document.querySelectorAll('#kintaiTable tbody tr').forEach(row => {
-    const inputs = row.querySelectorAll('input, select');
-    inputs.forEach(input => {
-      input.setAttribute('data-original', input.value);
-    });
-  });
+	document.querySelectorAll('#kintaiTable tbody tr').forEach(row => {
+		const inputs = row.querySelectorAll('input, select');
+		inputs.forEach(input => {
+			input.setAttribute('data-original', input.value);
+		});
+	});
 }
 
-//// ▼ 休暇種別ごとの集計を行う関数
-//function calculateLeaveSummary() {
-//  // 勤怠フォーム要素取得（例として1行フォームの要素を想定。複数行の場合はループなど必要）
-//  const form = document.getElementById('kintai-form');
-//  if (!form) return;
-//
-//  // 状態と時間（所定・実働）取得
-//  const status = form.elements['kintaiStatus']?.value;
-//  const scheduledStr = form.elements['scheduledWorkHours']?.value;
-//  const actualStr = form.elements['actualWorkHours']?.value;
-//  const scheduled = scheduledStr ? timeStrToMinutes(scheduledStr) : 0;
-//  const actual = actualStr ? timeStrToMinutes(actualStr) : 0;
-//
-//  // 休暇ラベル対応表
-//  const summaryMap = {
-//    paid_leave_full: '有給休暇',
-//    paid_leave_half: '有給休暇',
-//    substitute_leave: '振替休暇',
-//    compensatory_leave: '代休',
-//    work_related_illness: '業務上の疾病による休業',
-//    maternity_leave: '産前産後休業',
-//    childcare_leave: '育児休業',
-//    other_leave: 'その他休業'
-//  };
 
-  // グローバル集計オブジェクトがなければ初期化
-//  if (!window.leaveSummary) window.leaveSummary = {};
-
-//  let val = 0;
-//  if (status === 'paid_leave_full') {
-//    val = 1;
-//  } else if (status === 'paid_leave_half') {
-//    val = 0.5;
-//  } else if (summaryMap[status]) {
-//    // 所定時間が0以外の場合は実働/所定の割合で0.5 or 1を判定
-//    if (scheduled > 0 && actual > 0 && actual / scheduled <= 0.5) {
-//      val = 0.5;
-//    } else {
-//      val = 1;
-//    }
-//  }
-//
-//  if (val > 0) {
-//    const label = summaryMap[status];
-//    window.leaveSummary[label] = (window.leaveSummary[label] || 0) + val;
-//  }
-//
-//  // 集計結果を画面に反映する関数を呼ぶ（必要に応じて実装）
-//  renderLeaveSummary(window.leaveSummary);
-//}
 
 // ▼ 集計結果表示用（例）
 function renderLeaveSummary(summary) {
-  // 例：有給休暇の表示要素がある場合
-  const paidLeaveElem = document.getElementById('summaryPaidLeave');
-  if (paidLeaveElem) {
-    paidLeaveElem.textContent = summary['有給休暇'] ? summary['有給休暇'].toFixed(1) : '0.0';
-  }
-  // 他の休暇も同様に必要あれば対応
+	// 例：有給休暇の表示要素がある場合
+	const paidLeaveElem = document.getElementById('summaryPaidLeave');
+	if (paidLeaveElem) {
+		paidLeaveElem.textContent = summary['有給休暇'] ? summary['有給休暇'].toFixed(1) : '0.0';
+	}
+	// 他の休暇も同様に必要あれば対応
+}
+
+function recalcRow(tr) {
+	const start = tr.querySelector('input[name="actualWorkStartTime"]').value;
+	const end = tr.querySelector('input[name="actualWorkEndTime"]').value;
+	const breakStart = tr.querySelector('input[name="actualBreakStartTime"]').value;
+	const breakEnd = tr.querySelector('input[name="actualBreakEndTime"]').value;
+
+	const workMin = (start && end) ? timeStrToMinutes(end) - timeStrToMinutes(start) : 0;
+	const breakMin = (breakStart && breakEnd) ? timeStrToMinutes(breakEnd) - timeStrToMinutes(breakStart) : 0;
+	const actualMin = Math.max(0, workMin - breakMin);
+
+	// 所定は予定時間から
+	const plannedStart = tr.querySelector('input[name="plannedWorkStartTime"]').value;
+	const plannedEnd = tr.querySelector('input[name="plannedWorkEndTime"]').value;
+	const plannedBreakStart = tr.querySelector('input[name="plannedBreakStartTime"]').value;
+	const plannedBreakEnd = tr.querySelector('input[name="plannedBreakEndTime"]').value;
+	const plannedWorkMin = (plannedStart && plannedEnd) ? timeStrToMinutes(plannedEnd) - timeStrToMinutes(plannedStart) : 0;
+	const plannedBreakMin = (plannedBreakStart && plannedBreakEnd) ? timeStrToMinutes(plannedBreakEnd) - timeStrToMinutes(plannedBreakStart) : 0;
+	const scheduledMin = plannedWorkMin - plannedBreakMin;
+
+	const overtimeMin = Math.max(0, actualMin - scheduledMin);
+
+	// 結果を反映
+	tr.querySelector('input[name="scheduledWorkHours"]').value = minutesToTimeStr(scheduledMin);
+	tr.querySelector('input[name="actualWorkHours"]').value = minutesToTimeStr(actualMin);
+	tr.querySelector('input[name="overtimeHours"]').value = minutesToTimeStr(overtimeMin);
+	tr.querySelector('input[name="deductionTime"]').value =
+    minutesToTimeStr(Math.max(0, scheduledMin - actualMin));
+}
+
+function attachRecalcEvents() {
+	document.querySelectorAll('#kintaiTable tbody tr').forEach(tr => {
+		const inputs = tr.querySelectorAll('input[type="time"]');
+		inputs.forEach(input => {
+			input.addEventListener('input', () => {
+				setTimeout(() => recalcRow(tr), 0); // 非同期で実行
+			});
+		});
+	});
 }
 
 
+function attachRecalcEvents() {
+	document.querySelectorAll('#kintaiTable tbody tr').forEach(tr => {
+		const inputs = tr.querySelectorAll('input[type="time"]');
+		inputs.forEach(input => {
+			input.addEventListener('input', () => {
+				setTimeout(() => recalcRow(tr), 0); // 非同期で実行
+			});
+		});
+	});
+}
+
+
+// --- DB送信用：分 → 小数時間（DECIMAL）変換 ---
+function minutesToDecimalHours(min) {
+	return +(min / 60).toFixed(2); // 小数点2桁で丸め
+}
+
+
+
+
 function saveKintaiData() {
-  const userId = targetUserId;
-  const rows = document.querySelectorAll('#kintaiTable tbody tr');
-  const newKintaiList = [];
+	const userId = targetUserId;
+	const rows = document.querySelectorAll('#kintaiTable tbody tr');
+	let newKintaiList = [];
 
-  rows.forEach(row => {
-    const cells = row.querySelectorAll('td');
-    const inputs = row.querySelectorAll('input, select');
-    if (inputs.length < 14) return;
+	let counts = {
+		attendance: 0, absent: 0, paidLeave: 0, substituteLeave: 0,
+		compensatoryLeave: 0, bereavementLeave: 0, sickLeave: 0,
+		maternityLeave: 0, childcareLeave: 0, otherLeave: 0
+	};
 
-    // 入力項目（index 0～13）だけ比較
-    const isModified = [...inputs].slice(0, 14).some(inp => {
-      const original = (inp.getAttribute('data-original') || '').trim();
-      const current = (inp.value || '').trim();
+	rows.forEach((row) => {
+		const cells = row.querySelectorAll('td');
+		const inputs = row.querySelectorAll('input, select');
+		if (inputs.length < 14) return;
 
-      // "00:00"と""を等価として扱う
-      return (original === '' && current === '00:00') || (current === '' && original === '00:00')
-        ? false
-        : original !== current;
-    });
+		// --- 記入行のみ保存判定 ---
+		const timeAndCommentInputs = Array.from(inputs).slice(0, 12); // 時間や休憩、その他入力
+		const commentInput = inputs[13]; // コメント
+		const anyFilled = timeAndCommentInputs.some(input => {
+			const v = (input.value || '').trim();
+			return v !== '' && v !== '00:00' && v !== 'nothing';
+		}) || (commentInput && commentInput.value && commentInput.value.trim() !== '');
+		if (!anyFilled) return; // 空行はスキップ
 
-    if (!isModified) return;
+		// --- 基本計算 ---
+		const plannedWorkMin = (inputs[1].value && inputs[0].value)
+			? timeStrToMinutes(inputs[1].value) - timeStrToMinutes(inputs[0].value)
+			: 0;
 
-    const entry = {
-      userId: userId,
-      workDate: cells[0].textContent.trim(),
-      userName: cells[1].textContent.trim(),
-      plannedWorkStartTime: inputs[0].value,
-      plannedWorkEndTime: inputs[1].value,
-      plannedBreakStartTime: inputs[2].value,
-      plannedBreakEndTime: inputs[3].value,
-      actualWorkStartTime: inputs[4].value,
-      actualWorkEndTime: inputs[5].value,
-      actualBreakStartTime: inputs[6].value,
-      actualBreakEndTime: inputs[7].value,
-      scheduledWorkHours: timeToDecimalString(inputs[8].value),
-      actualWorkHours: timeToDecimalString(inputs[9].value),
-      overtimeHours: timeToDecimalString(inputs[10].value),
-      deductionTime: timeToDecimalString(inputs[11].value),
-      kintaiStatus: inputs[12].value,
-      kintaiComment: inputs[13].value,
-      updatedBy: sessionUserId || targetUserId
-    };
+		const plannedBreakMin = (inputs[3].value && inputs[2].value)
+			? timeStrToMinutes(inputs[3].value) - timeStrToMinutes(inputs[2].value)
+			: 0;
 
-    newKintaiList.push(entry);
-  });
+		let scheduledMin = plannedWorkMin - plannedBreakMin;
 
-  if (newKintaiList.length === 0) {
-    alert('変更された行がありません');
-    setOriginalValues()
-    return;
-  }
+		const actualWorkMin = (inputs[5].value && inputs[4].value)
+			? timeStrToMinutes(inputs[5].value) - timeStrToMinutes(inputs[4].value)
+			: 0;
 
-  fetch('/kintai/api/save-list/' + encodeURIComponent(userId), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(newKintaiList)
-  })
-    .then(async res => {
-      const contentType = res.headers.get("content-type");
-      const text = await res.text();
-      if (!res.ok) throw new Error(`HTTP error ${res.status}: ${text}`);
-      if (contentType && contentType.includes("application/json")) {
-        return JSON.parse(text);
-      } else {
-        throw new Error("サーバーからJSON形式でレスポンスが返されませんでした");
-      }
-    })
-    .then(json => {
-      alert('保存成功！');
-      console.log('保存されたデータ:', json);
-      
-    })
-    .catch(err => {
-      alert('保存失敗: ' + err.message);
-      console.error('保存失敗:', err);
-      
-    });
-setOriginalValues()
-  console.log('保存する勤怠データ:', newKintaiList);
-  kintaiListJson = newKintaiList;
+		const actualBreakMin = (inputs[7].value && inputs[6].value)
+			? timeStrToMinutes(inputs[7].value) - timeStrToMinutes(inputs[6].value)
+			: 0;
 
-  document.querySelectorAll('input, select').forEach(el => el.disabled = true);
-  //document.getElementById('saveBtn').textContent = '編集';
-  isEditing = false;
+		let actualMin = actualWorkMin - actualBreakMin;
+
+		// --- 半休・全休・代休対応 ---
+		let adjustedActualMin = actualMin;
+		let adjustedBreakMin = actualBreakMin;
+		let adjustedOvertimeMin = Math.max(0, actualMin - scheduledMin);
+		let deductionMin = Math.max(0, scheduledMin - adjustedActualMin);
+
+		// ▼ saveKintaiData内：半休・全休・代休対応
+switch (inputs[12].value) { // kintaiStatus
+	case 'paid_leave_half':
+		adjustedActualMin = actualMin / 2;
+		adjustedBreakMin = 0;
+		adjustedOvertimeMin = 0;
+		deductionMin = scheduledMin - adjustedActualMin;
+		counts.paidLeave += 0.5;
+		break;
+	case 'paid_leave_full':
+	case 'substitute_leave':
+	case 'compensatory_leave':
+	case 'bereavement_leave':
+	case 'sick_leave':
+	case 'maternity_leave':
+	case 'childcare_leave':
+	case 'other_leave':
+		adjustedActualMin = 0;
+		adjustedBreakMin = 0;
+		adjustedOvertimeMin = 0;
+		deductionMin = 0;
+		// 所定時間は予定時間を維持
+		// scheduledMin = plannedWorkMin - plannedBreakMin;
+		const leaveKey = inputs[12].value.replace(/_leave$/, '');
+		if (counts.hasOwnProperty(leaveKey)) counts[leaveKey] += 1;
+		break;
+	default:
+		deductionMin = Math.max(0, scheduledMin - adjustedActualMin);
+		if (inputs[12].value === 'nothing' && actualMin > 0) counts.attendance += 1;
+		break;
+}
+
+		// --- DTO生成 ---
+		const entry = {
+			userId: userId,
+			workDate: cells[0].textContent.trim(),
+			userName: cells[1].textContent.trim(),
+			plannedWorkStartTime: inputs[0].value,
+			plannedWorkEndTime: inputs[1].value,
+			plannedBreakStartTime: inputs[2].value,
+			plannedBreakEndTime: inputs[3].value,
+			actualWorkStartTime: inputs[4].value,
+			actualWorkEndTime: inputs[5].value,
+			actualBreakStartTime: inputs[6].value,
+			actualBreakEndTime: inputs[7].value,
+			// HH:MM → 小数時間に変換
+			scheduledWorkHours: minutesToTimeStr(scheduledMin),
+			actualWorkHours: minutesToTimeStr(adjustedActualMin),
+			overtimeHours: minutesToTimeStr(adjustedOvertimeMin),
+			deductionTime: minutesToTimeStr(deductionMin),
+			kintaiStatus: inputs[12].value,
+			kintaiComment: inputs[13].value,
+			updatedBy: sessionUserName || targetUserName
+		};
+
+		newKintaiList.push(entry);
+	});
+
+	// --- 欠勤計算 ---
+	counts.absent = counts.paidLeave + counts.substituteLeave + counts.compensatoryLeave +
+		counts.bereavementLeave + counts.sickLeave + counts.maternityLeave +
+		counts.childcareLeave + counts.otherLeave;
+
+	if (newKintaiList.length === 0) {
+		alert('変更された行がありません');
+		setOriginalValues();
+		return;
+	}
+
+	// --- API送信（CSRFトークン付き） ---
+	const csrfMeta = document.querySelector('meta[name="_csrf"]');
+	const csrfToken = csrfMeta ? csrfMeta.content : '';
+
+	console.log('送信URL:', '/kintai/api/save-list/' + encodeURIComponent(userId));
+	console.log('送信データ:', JSON.stringify(newKintaiList));
+
+	fetch('/kintai/api/save-list/' + encodeURIComponent(userId), {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
+		body: JSON.stringify(newKintaiList)
+	})
+		.then(async res => {
+			const text = await res.text();
+			if (!res.ok) throw new Error(`HTTP ${res.status}: ${text.substring(0, 100)}`);
+			return JSON.parse(text);
+		})
+		.then(json => {
+			const savedList = Array.isArray(json) ? json : (Array.isArray(json.data) ? json.data : []);
+
+			savedList.forEach(dto => {
+				dto.updatedBy = sessionUserName || targetUserName;
+				const idx = kintaiListJson.findIndex(k => k.workDate === dto.workDate);
+				if (idx !== -1) kintaiListJson[idx] = dto;
+				else kintaiListJson.push(dto);
+			});
+
+			alert('保存成功！');
+			const year = currentDate.getFullYear();
+			const month = currentDate.getMonth();
+			const newData = generateDummyData(year, month);
+			createTable(newData);
+			setTimeout(setOriginalValues, 100);
+
+			editBtn.style.display = 'inline';
+			saveBtn.style.display = 'none';
+			cancelBtn.style.display = 'none';
+		})
+		.catch(err => {
+			alert('保存失敗: ' + err.message);
+			console.error('保存失敗:', err);
+		});
+
+	kintaiListJson = newKintaiList;
+	document.querySelectorAll('input, select').forEach(el => el.disabled = true);
+	isEditing = false;
 }
 
 // ▼ 月移動イベントと初期表示
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('prevMonth').addEventListener('click', () => {
-    currentDate.setMonth(currentDate.getMonth() - 1);
-    refreshTable();
-    setTimeout(setOriginalValues, 100);
-  });
+	// 1. 月移動ボタン
+	['prevMonth', 'nextMonth'].forEach(id => {
+		const btn = document.getElementById(id);
+		if (btn) {
+			btn.addEventListener('click', () => {
+				currentDate.setMonth(currentDate.getMonth() + (id === 'prevMonth' ? -1 : 1));
+				refreshTable();
+				setTimeout(setOriginalValues, 100);
+				fetchStatusAndUpdate(); // 月変更時にステータス更新
+			});
+		}
+	});
 
-  document.getElementById('nextMonth').addEventListener('click', () => {
-    currentDate.setMonth(currentDate.getMonth() + 1);
-    refreshTable();
-    setTimeout(setOriginalValues, 100);
-  });
+	// 2. 初期表示
+	refreshTable();
+	setTimeout(setOriginalValues, 100);
 
-  refreshTable();
-  setTimeout(setOriginalValues, 100);
+	// 3. 勤怠申請ボタン制御
+	handleAction("applyBtn", "applyForm", null, "申請しますか？");
+	handleAction("reapplyBtn", "applyForm", null, "再申請しますか？");
+	handleAction("approveBtn", "approveForm", null, "承認しますか？");
+	handleAction("rejectBtn", "rejectForm", "rejectComment", "差戻しますか？");
 
-  document.getElementById('saveBtn').addEventListener('click', () => {
-    console.log('保存ボタンが押されました');
-    try {
-      saveKintaiData();
-    } catch (e) {
-      console.error('保存中にエラー発生:', e);
-    }
-  });
+	// 4. ステータス取得 & ボタン更新
+	fetchStatusAndUpdate();
+
+	// 5. 保存ボタン
+	document.getElementById('saveBtn').addEventListener('click', saveKintaiData);
 });
+// ▼ 勤怠申請ボタン制御（バックアップ＋fetch対応）
+function updateApplicationButtons(status) {
+    const applyBtn = document.getElementById("applyBtn");
+    const reapplyBtn = document.getElementById("reapplyBtn");
+    const approveBtn = document.getElementById("approveBtn");
+    const rejectBtn = document.getElementById("rejectBtn");
+
+    switch (status) {
+        case "":
+            if (applyBtn) applyBtn.disabled = false;
+            if (reapplyBtn) reapplyBtn.disabled = true;
+            if (approveBtn) approveBtn.disabled = false;
+            if (rejectBtn) rejectBtn.disabled = false;
+            break;
+        case "APPLYING":
+            if (applyBtn) applyBtn.disabled = true;
+            if (reapplyBtn) reapplyBtn.disabled = true;
+            if (approveBtn) approveBtn.disabled = false;
+            if (rejectBtn) rejectBtn.disabled = false;
+            break;
+        case "REJECTED":
+            if (applyBtn) applyBtn.disabled = true;
+            if (reapplyBtn) reapplyBtn.disabled = false;
+            if (approveBtn) approveBtn.disabled = true;
+            if (rejectBtn) rejectBtn.disabled = true;
+            break;
+        case "APPROVED":
+            if (applyBtn) applyBtn.disabled = true;
+            if (reapplyBtn) reapplyBtn.disabled = true;
+            if (approveBtn) approveBtn.disabled = true;
+            if (rejectBtn) rejectBtn.disabled = true;
+            break;
+        default:
+            if (applyBtn) applyBtn.disabled = false;
+            if (reapplyBtn) reapplyBtn.disabled = true;
+            if (approveBtn) approveBtn.disabled = false;
+            if (rejectBtn) rejectBtn.disabled = false;
+    }
+}
+// ▼ ステータス取得 & ボタン更新
+function fetchStatusAndUpdate() {
+	const yearMonth = currentDate.toISOString().slice(0, 7); // yyyy-MM
+	fetch(`/kintai/status?userId=${targetUserId}&yearMonth=${yearMonth}`)
+		.then(res => res.json())
+		.then(data => {
+			console.log("取得したstatus:", data);
+			updateApplicationButtons(data.status);
+			const statusSpan = document.querySelector('#statusSpan');
+			if (statusSpan) {
+				statusSpan.textContent = ({
+					APPLYING: '申請中',
+					REJECTED: '差戻中',
+					APPROVED: '承認済'
+				})[data.status] || '未申請';
+			}
+		})
+		.catch(e => console.error("status取得エラー:", e));
+}
+
+// ▼ 申請・承認フロー共通処理
+function handleAction(buttonId, formId, commentInputId, confirmMsg) {
+	const btn = document.getElementById(buttonId);
+	if (!btn) return;
+
+	btn.addEventListener("click", async () => {
+		if (!confirm(confirmMsg)) return;
+
+		// コメント入力ポップアップ
+		let comment = "";
+		// commentInputId に関係なく常に prompt を出す
+		comment = prompt("コメントを入力してください", commentInputId ? document.getElementById(commentInputId)?.value || "" : "");
+		if (comment === null) return; // キャンセルなら処理中止
+		if (commentInputId) {
+			const commentInput = document.getElementById(commentInputId);
+			if (commentInput) commentInput.value = comment;
+		}
+
+		try {
+			const form = document.getElementById(formId);
+			if (!form) throw new Error("フォームが見つかりません");
+
+			// FormData作成
+			const formData = new FormData(form);
+			formData.set("comment", comment);
+
+			// URLSearchParams に変換してPOST
+			const params = new URLSearchParams(formData);
+
+			const response = await fetch(form.action, {
+				method: "POST",
+				body: params,
+			});
+
+			if (!response.ok) throw new Error(`HTTPエラー: ${response.status}`);
+
+			// JSONを安全に取得
+			let data = {};
+			try { data = await response.json(); }
+			catch (e) { console.warn("JSON変換失敗:", e); }
+
+			console.log(buttonId + " 結果:", data);
+
+			// ステータス更新
+			updateApplicationButtons?.(data.status || "");
+			const statusSpan = document.querySelector("#statusSpan");
+			if (statusSpan) {
+				statusSpan.textContent = ({
+					APPLYING: '申請中',
+					REJECTED: '差戻中',
+					APPROVED: '承認済'
+				})[data.status] || '未申請';
+			}
+
+		} catch (err) {
+			console.error(buttonId + " エラー:", err);
+			alert("通信に失敗しました。再度お試しください。");
+		}
+	});
+}
+
+
+
+
+

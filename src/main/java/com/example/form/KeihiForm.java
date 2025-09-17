@@ -18,7 +18,7 @@ public class KeihiForm {
 	private Integer amount;
 	private String note;
 
-	private List<Keihi> keihiList;  
+	private List<Keihi> keihi;  
 	
 }
 

@@ -38,25 +38,25 @@ department_id INT PRIMARY KEY
 
 /* 勤怠記録テーブル */
 CREATE TABLE IF NOT EXISTS t_kintai(
-user_id VARCHAR(50) 
-,work_date DATE
-,updated_by VARCHAR(50)
-,updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-,planned_work_start_time TIME
-,planned_work_end_time TIME
-,planned_break_start_time TIME
-,planned_break_end_time TIME
-,actual_work_start_time TIME
-,actual_work_end_time TIME
-,actual_break_start_time TIME
-,actual_break_end_time TIME
-,scheduled_work_hours DECIMAL
-,actual_work_hours DECIMAL
-,overtime_hours DECIMAL
-,deduction_time DECIMAL
-,kintai_status VARCHAR(50)
-,kintai_comment VARCHAR(50)
-,PRIMARY KEY (user_id, work_date)
+    user_id VARCHAR(50),
+    work_date DATE,
+    updated_by VARCHAR(50),
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    planned_work_start_time TIME,
+    planned_work_end_time TIME,
+    planned_break_start_time TIME,
+    planned_break_end_time TIME,
+    actual_work_start_time TIME,
+    actual_work_end_time TIME,
+    actual_break_start_time TIME,
+    actual_break_end_time TIME,
+    scheduled_work_hours DECIMAL(5,2),
+    actual_work_hours DECIMAL(5,2),
+    overtime_hours DECIMAL(5,2),
+    deduction_time DECIMAL(5,2),
+    kintai_status VARCHAR(50),
+    kintai_comment VARCHAR(50),
+    PRIMARY KEY (user_id, work_date)
 );
 
 
@@ -95,4 +95,16 @@ CREATE TABLE IF NOT EXISTS t_keihi (
   amount INT NOT NULL,                       -- 金額
   note TEXT,                                 -- 特記事項（任意）
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS t_application (
+  application_id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id VARCHAR(50) NOT NULL,        -- 申請者
+  category VARCHAR(20) NOT NULL,       -- 'KINTAI', 'KOUTSUHI', 'KEIHI'
+  year_month CHAR(7) NOT NULL,         -- '2025-08' など
+  status VARCHAR(20) NOT NULL,         -- 'APPLYING','REJECTED','REAPPLYING','APPROVED'
+  comment TEXT,                        -- 差戻コメントなど
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_app_user FOREIGN KEY (user_id) REFERENCES m_user(user_id)
 );

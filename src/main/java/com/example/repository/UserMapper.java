@@ -29,4 +29,7 @@ public interface UserMapper {
 	/** ログインユーザー取得  */
 	public MUser findLoginUser(String userId);
 	
+	// UserMapper.java
+	MUser findAdmin(); // SQLでrole = 'ROLE_ADMIN' のユーザー1件を返す
+	
 }

@@ -1,179 +1,230 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" layout:decorate="~{layout/layout}">
+<html xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+	layout:decorate="~{layout/layout}">
+
 <head>
-  <meta charset="UTF-8">
-  <!-- 個別CSS読込 -->
-  <link rel="stylesheet" th:href="@{/css/kintai/list.css}">
-  <!-- FullCalendarのデザインCSS -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css">
-  <!-- 個別JS読込 -->
-  <!-- kintaiList.js の読み込み -->
-  <script th:inline="javascript">
-    const 	kintaiList = /*[[${kintaiList}]]*/ [];
-	let kintaiListJson = /*[[${kintaiList}]]*/ [];
-	console.log("kintaiList (raw):", kintaiListJson);
-	const targetUserName = /*[[${targetUserName}]]*/ 	'defaultUser';
-	const 	sessionUserName = /*[[${sessionUserName}]]*/ 	'defaultUser';
-	const 	targetUserId = /*[[${targetUserId}]]*/ 	'defaultUser';
-	const 		sessionUserId = /*[[${sessionUserId}]]*/ 	'defaultUser';
-	    console.log("社員名：", targetUserName);
-		console.log("更新者名：", sessionUserName);
-  </script>
-    <script th:src="@{/js/kintai/kintaiList.js}" defer></script>
-  <script th:src="@{/webjars/datatables/js/jquery.dataTables.min.js}" defer></script>
-  <link rel="stylesheet" th:href="@{/webjars/datatables/css/jquery.dataTables.min.css}">
-  <!-- FullCalendarの動作JS -->
-  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
-  <title>勤怠一覧</title>
-  <style>
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
+	<meta charset="UTF-8">
+	<!-- CSRF token追加 -->
+	  <meta name="_csrf" content="/*[[${_csrf.token}]]*/">
+	  <meta name="_csrf_header" content="/*[[${_csrf.headerName}]]*/">
 
-    th, td {
-      padding: 8px;
-      border: 1px solid #ccc;
-      text-align: center;
-    }
+	<link rel="stylesheet" th:href="@{/css/kintai/list.css}">
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css">
+	<link rel="stylesheet" th:href="@{/webjars/datatables/css/jquery.dataTables.min.css}">
+	<script th:inline="javascript">
+		const kintaiList = /*[[${kintaiList}]]*/ [];
+		let kintaiListJson = /*[[${kintaiList}]]*/[];
+		const targetUserName = /*[[${targetUserName}]]*/ 'defaultUser';
+		const sessionUserName = /*[[${sessionUserName}]]*/ 'defaultUser';
+		const targetUserId = /*[[${targetUserId}]]*/ 'defaultUser';
+		const sessionUserId = /*[[${sessionUserId}]]*/ 'defaultUser';
+		const currentYearMonth = /*[[${currentYearMonth}]]*/ '2025-08';
+	</script>
+	<script th:src="@{/js/kintai/kintaiList.js}" defer></script>
+	<script th:src="@{/webjars/datatables/js/jquery.dataTables.min.js}" defer></script>
+	<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+	<title>勤怠一覧</title>
+	<style>
+		table {
+			width: 100%;
+			border-collapse: collapse;
+		}
 
-    th {
-      background-color: #f2f2f2;
-    }
-  </style>
-  <style>
-    #kintaiList-table-container {
-      margin-top: 20px; /* ここで隙間の高さを指定 */
-    }
-  </style>
+		th,
+		td {
+			padding: 8px;
+			border: 1px solid #ccc;
+			text-align: center;
+		}
+
+		th {
+			background-color: #f2f2f2;
+		}
+
+		input[readonly],
+		input:disabled {
+			background-color: #f9f9f9;
+		}
+
+		#kintaiList-table-container,
+		#tableContainer {
+			margin-top: 20px;
+		}
+	</style>
 </head>
+
 <body>
-  <div layout:fragment="content">
-    <h1>今月の勤怠リスト</h1>
-    <div>
-      <button id="prevMonth">＜前月</button>
-      <span id="currentMonthLabel"></span>
-      <button id="nextMonth">次月＞</button>
-    </div>
-	
-	<!-- 追加 -->
-	<div id="summaryContainer">
-	    <div id="attendanceSummary">
-	        <h2>日数集計</h2>
-	        <table id="attendanceSummaryTable">
-	            <thead>
-	                <tr>
-	                    <th>項目</th>
-	                    <th>日数</th>
-	                </tr>
-	            </thead>
-	            <tbody>
-	                <tr>
-	                    <td>出勤</td>
-	                    <td id="attendanceDays">0</td>
-	                </tr>
-	                <tr>
-	                    <td>欠勤</td>
-	                    <td id="absentDays">0</td>
-	                </tr>
-	            </tbody>
-	        </table>
-	    </div>
-	
-	    <div id="leaveSummary">
-	        <h2>休暇集計</h2>
-	        <table id="leaveSummaryTable">
-	            <thead>
-	                <tr>
-	                    <th>項目</th>
-	                    <th>日数</th>
-	                </tr>
-	            </thead>
-	            <tbody>
-	                <tr>
-	                    <td>有給休暇</td>
-	                    <td id="paidLeaveDays">0</td>
-	                </tr>
-	                <tr>
-	                    <td>振替休暇</td>
-	                    <td id="substituteLeaveDays">0</td>
-	                </tr>
-	                <tr>
-	                    <td>代休</td>
-	                    <td id="compensatoryLeaveDays">0</td>
-	                </tr>
-	                <tr>
-	                    <td>慶弔休暇</td>
-	                    <td id="bereavementLeaveDays">0</td>
-	                </tr>
-	                <tr>
-	                    <td>病欠</td>
-	                    <td id="sickLeaveDays">0</td>
-	                </tr>
-	                <tr>
-	                    <td>産休</td>
-	                    <td id="maternityLeaveDays">0</td>
-	                </tr>
-	                <tr>
-	                    <td>育児休暇</td>
-	                    <td id="childcareLeaveDays">0</td>
-	                </tr>
-	                <tr>
-	                    <td>その他休暇</td>
-	                    <td id="otherLeaveDays">0</td>
-	                </tr>
-	            </tbody>
-	        </table>
-	    </div>
-	
-	    <div id="timeSummary">
-	        <h2>時間集計</h2>
-	        <table id="timeSummaryTable">
-	            <thead>
-	                <tr>
-	                    <th>項目</th>
-	                    <th>時間</th>
-	                </tr>
-	            </thead>
-	            <tbody>
-	                <tr>
-	                    <td>所定時間</td>
-	                    <td id="scheduledHours">0</td>
-	                </tr>
-	                <tr>
-	                    <td>実働時間</td>
-	                    <td id="actualHours">0</td>
-	                </tr>
-	                <tr>
-	                    <td>休憩時間</td>
-	                    <td id="breakTime">0</td>
-	                </tr>
-	                <tr>
-	                    <td>時間外</td>
-	                    <td id="overtime">0</td>
-	                </tr>
-	                <tr>
-	                    <td>控除時間</td>
-	                    <td id="deductions">0</td>
-	                </tr>
-	                <tr>
-	                    <td>休日</td>
-	                    <td id="holidayHours">0</td>
-	                </tr>
-	            </tbody>
-	        </table>
-	    </div>
+	<div layout:fragment="content">
+		<h1>今月の勤怠リスト</h1>
+
+		<p>現在のrole: <span th:text="${role}">未設定</span></p>
+		<p>status: <span id="statusSpan">未設定</span></p>
+		<!--    <p>status: <span th:text="${status}">未設定</span></p>-->
+
+		<!-- 申請フロー -->
+		<div id="applicationContainer" class="mt-4">
+			<h2>申請フロー</h2>
+
+			<!-- 一般ユーザー -->
+			<div th:if="${role == 'ROLE_GENERAL'}">
+				<button type="button" id="applyBtn">申請</button>
+				<form th:action="@{/kintai/apply}" method="post" id="applyForm" style="display:none;">
+					<input type="hidden" name="yearMonth" th:value="${currentYearMonth}" />
+					<input type="hidden" name="comment" id="applyComment" value="" />
+				</form>
+				<button type="button" id="reapplyBtn">再申請</button>
+			</div>
+
+			<!-- 管理者 -->
+			<div th:if="${role == 'ROLE_ADMIN'}" style="display:flex; gap:8px;">
+				<form th:action="@{/kintai/approve}" method="post" id="approveForm" style="margin:0;">
+					<!-- 必須パラメータ userId を hidden でセット -->
+									    <input type="hidden" name="userId" th:value="${targetUserId}" />
+									    <!-- コメント入力欄 -->
+									    <input type="hidden" name="comment" id="rejectComment" value="">
+									    <!-- ボタンは type="button" にして JS で submit -->
+					<button type="button" id="approveBtn">承認</button>
+				</form>
+				<form th:action="@{/kintai/reject}" method="post" id="rejectForm" style="margin:0;">
+				    <!-- 必須パラメータ userId を hidden でセット -->
+				    <input type="hidden" name="userId" th:value="${targetUserId}" />
+				    <!-- コメント入力欄 -->
+				    <input type="hidden" name="comment" id="rejectComment" value="">
+				    <!-- ボタンは type="button" にして JS で submit -->
+				    <button type="button" id="rejectBtn">差戻</button>
+				</form>
+			</div>
+		</div>
+
+		<br>
+		<div>
+			<button id="prevMonth">＜前月</button>
+			<span id="currentMonthLabel"></span>
+			<button id="nextMonth">次月＞</button>
+		</div>
+
+		<!-- 集計テーブル -->
+		<div id="summaryContainer">
+			<!-- 日数集計 -->
+			<div id="attendanceSummary">
+				<h2>日数集計</h2>
+				<table id="attendanceSummaryTable">
+					<thead>
+						<tr>
+							<th>項目</th>
+							<th>日数</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td>出勤</td>
+							<td id="attendanceDays">0</td>
+						</tr>
+						<tr>
+							<td>欠勤</td>
+							<td id="absentDays">0</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+
+			<!-- 休暇集計 -->
+			<div id="leaveSummary">
+				<h2>休暇集計</h2>
+				<table id="leaveSummaryTable">
+					<thead>
+						<tr>
+							<th>項目</th>
+							<th>日数</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td>有給休暇</td>
+							<td id="paidLeaveDays">0</td>
+						</tr>
+						<tr>
+							<td>振替休暇</td>
+							<td id="substituteLeaveDays">0</td>
+						</tr>
+						<tr>
+							<td>代休</td>
+							<td id="compensatoryLeaveDays">0</td>
+						</tr>
+						<tr>
+							<td>慶弔休暇</td>
+							<td id="bereavementLeaveDays">0</td>
+						</tr>
+						<tr>
+							<td>病欠</td>
+							<td id="sickLeaveDays">0</td>
+						</tr>
+						<tr>
+							<td>産休</td>
+							<td id="maternityLeaveDays">0</td>
+						</tr>
+						<tr>
+							<td>育児休暇</td>
+							<td id="childcareLeaveDays">0</td>
+						</tr>
+						<tr>
+							<td>その他休暇</td>
+							<td id="otherLeaveDays">0</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+
+			<!-- 時間集計 -->
+			<div id="timeSummary">
+				<h2>時間集計</h2>
+				<table id="timeSummaryTable">
+					<thead>
+						<tr>
+							<th>項目</th>
+							<th>時間</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td>所定時間</td>
+							<td id="scheduledHours">0</td>
+						</tr>
+						<tr>
+							<td>実働時間</td>
+							<td id="actualHours">0</td>
+						</tr>
+						<tr>
+							<td>休憩時間</td>
+							<td id="breakTime">0</td>
+						</tr>
+						<tr>
+							<td>時間外</td>
+							<td id="overtime">0</td>
+						</tr>
+						<tr>
+							<td>控除時間</td>
+							<td id="deductions">0</td>
+						</tr>
+						<tr>
+							<td>休日</td>
+							<td id="holidayHours">0</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+		</div>
+
+		<div id="buttonContainer">
+			<button id="editBtn">編集</button>
+			<button id="cancelBtn" style="display:none;">キャンセル</button>
+			<button id="saveBtn" style="display:none;">保存</button>
+		</div>
+
+
+		<div id="kintaiList-table-container"></div>
+		<div id="tableContainer"></div>
 	</div>
-
-	<div id="buttonContainer">
-	  <button id="editBtn">編集</button>
-	  <button id="cancelBtn" style="display:none;">キャンセル</button>
-	  <button id="saveBtn" style="display:none;">保存</button>
-	</div>
-
-    <div id="kintaiList-table-container"></div>
-	<div id="tableContainer"></div>
-
-  </div>
 </body>
+
 </html>
