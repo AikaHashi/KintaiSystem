@@ -4,42 +4,50 @@
 
 <head>
 	<script th:inline="javascript">
-		    const 	kintaiList = /*[[${kintaiList}]]*/ [];
-			const kintaiListJson = /*[[${kintaiList}]]*/ [];
-			console.log("kintaiList (raw):", kintaiListJson);
-			const targetUserName = /*[[${targetUserName}]]*/ 	'defaultUser';		    
-		  </script>
-		  <script th:src="@{/js/kintai/kintaiList.js}" defer></script>
-		  <script th:src="@{/webjars/datatables/js/jquery.dataTables.min.js}" defer></script>
-		   <link rel="stylesheet" th:href="@{/webjars/datatables/css/jquery.dataTables.min.css}">
-		   <!-- FullCalendarの動作JS -->
-		   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+		const kintaiList = /*[[${kintaiList}]]*/ [];
+		const kintaiListJson = /*[[${kintaiList}]]*/ [];
+		console.log("kintaiList (raw):", kintaiListJson);
+		const targetUserName = /*[[${targetUserName}]]*/ 'defaultUser';
+	</script>
+	<script th:src="@{/js/kintai/kintaiList.js}" defer></script>
+	<script th:src="@{/webjars/datatables/js/jquery.dataTables.min.js}" defer></script>
+	<link rel="stylesheet" th:href="@{/webjars/datatables/css/jquery.dataTables.min.css}">
+	<!-- FullCalendarの動作JS -->
+	<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
 </head>
 
 <body>
 	<div layout:fragment="menu" class="bg-light">
 		<ul class="nav nav-pills nav-stacked">
+
+			<!-- 一般ユーザーのみ：本日の勤怠 -->
 			<li role="presentation" sec:authorize="!hasRole('ADMIN')">
 				<a class="nav-link" th:href="@{/kintai}">本日の勤怠</a>
 			</li>
+
+			<!-- 管理者のみ：ユーザー一覧 -->
 			<li role="presentation" sec:authorize="hasRole('ADMIN')">
-							<a class="nav-link" th:href="@{'/kintai/userList'}">ユーザー一覧</a>
-						</li>
-			<li role="presentation">
-							<a class="nav-link" th:href="@{/kintai/kintaiList/{userId}(userId=${sessionUserId})}">勤怠リスト</a>
-						</li>
-			<li role="presentation" >
-				<a class="nav-link" th:href="@{/kintai/koutsuhiKeihi/{userId}(userId=${sessionUserId})}">交通費・経費</a>
+				<a class="nav-link" th:href="@{'/kintai/userList'}">ユーザー一覧</a>
 			</li>
-			<!-- 勤怠リスト（ADMINのみ） -->
-<!--			<li role="presentation" sec:authorize="hasRole('ADMIN')">-->
-<!--				<a th:href="@{'/kintai/kintaiList/' + ${sessionUserName}}">勤怠リスト</a>-->
-<!--			</li>-->
+
+			<!-- 共通：勤怠リスト（管理者の場合は非表示） -->
+			<li role="presentation" sec:authorize="!hasRole('ADMIN')">
+				<a class="nav-link"
+				   th:href="@{/kintai/kintaiList/{userId}(userId=${sessionUserId})}">勤怠リスト</a>
+			</li>
+
+			<!-- 共通：交通費・経費（管理者の場合は非表示） -->
+			<li role="presentation" sec:authorize="!hasRole('ADMIN')">
+				<a class="nav-link"
+				   th:href="@{/kintai/koutsuhiKeihi/{userId}(userId=${sessionUserId})}">交通費・経費</a>
+			</li>
+
+			<!-- 管理者のみ：アドミン専用 -->
 			<li role="presentation" sec:authorize="hasRole('ADMIN')">
 				<a class="nav-link" th:href="@{'/admin'}">アドミン専用</a>
 			</li>
+
 		</ul>
 	</div>
 </body>
-
 </html>
