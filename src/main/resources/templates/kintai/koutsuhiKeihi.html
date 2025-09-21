@@ -3,6 +3,7 @@
 	layout:decorate="~{layout/layout}">
 
 <head>
+<<<<<<< HEAD
 	<title>交通費・経費</title>
 	<script th:src="@{/js/kintai/koutsuhiKeihi.js}" defer></script>
 	<link rel="stylesheet" th:href="@{/css/kintai/list.css}">
@@ -17,6 +18,14 @@
 			const statusKeihi= /*[[${statusKeihi} != null ? ${statusKeihi} : '[]']]*/ [];
 			
 	</script>
+=======
+  <title>交通費・経費</title>
+  <script th:src="@{/js/kintai/koutsuhiKeihi.js}" defer></script>
+  <link rel="stylesheet" th:href="@{/css/kintai/list.css}">
+  <script th:inline="javascript">
+    const sessionUserName = /*[[${sessionUserName}]]*/ "defaultUser";
+  </script>
+>>>>>>> b1ef8f0c1f78745eaf83d00a3989b8a9bcb2d280
 </head>
 
 <body>
@@ -28,6 +37,7 @@
 			<button id="nextMonth">次月＞</button>
 		</div>
 
+<<<<<<< HEAD
 		<!-- === 交通費フォーム === -->
 		<div class="header border-bottom">
 			<h1 class="h2">交通費</h1>
@@ -45,11 +55,57 @@
 			<button type="button" id="approveKoutsuhiBtn">承認（交通費）</button>
 			<button type="button" id="rejectKoutsuhiBtn">差戻（交通費）</button>
 <!--		</div>-->
+=======
+  <!-- === 交通費フォーム === -->
+  <div class="header border-bottom">
+    <h1 class="h2">交通費</h1>
+  </div>
+  <form id="koutsuhi-form">
+    <input type="hidden" name="userId" th:value="${sessionUserName}" />
+    <input type="hidden" id="deletedKoutsuhiIds" name="deletedKoutsuhiIds" />
+    <table id="koutsuhiTable" border="1">
+      <thead>
+        <tr>
+          <th>日付</th><th>手段</th><th>出発地</th><th>到着地</th>
+          <th>経由地</th><th>金額</th><th>特記事項</th><th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="koutsuhiTableBody"></tbody>
+    </table>
+    <p>合計金額：<span id="totalKoutsuhiAmount">0</span> 円</p>
+    <br>
+    <button type="button" id="add-koutsuhi-row">行を追加</button>
+    <button type="button" id="btn-save-koutsuhi">保存（交通費）</button>
+  </form>
+
+  <!-- === 経費フォーム === -->
+  <div class="header border-bottom mt-4">
+    <h1 class="h2">経費</h1>
+  </div>
+  <form id="keihi-form">
+    <input type="hidden" name="userId" th:value="${sessionUserName}" />
+    <input type="hidden" id="deletedKeihiIds" name="deletedKeihiIds" />
+    <table id="keihiTable" border="1">
+      <thead>
+        <tr>
+          <th>日付</th><th>手段</th><th>出発地</th><th>到着地</th>
+          <th>経由地</th><th>金額</th><th>特記事項</th><th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="keihiTableBody"></tbody>
+    </table>
+    <p>合計金額：<span id="totalKeihiAmount">0</span> 円</p>
+    <br>
+    <button type="button" id="add-keihi-row">行を追加</button>
+    <button type="button" id="btn-save-keihi">保存（経費）</button>
+  </form>
+>>>>>>> b1ef8f0c1f78745eaf83d00a3989b8a9bcb2d280
 
 		<form id="koutsuhi-form" th:action="@{/kintai/koutsuhi/save}" method="post">
 			<!-- ★ CSRF hidden（安全版） -->
 			<input type="hidden" name="_csrf" th:value="${_csrf != null ? _csrf.token : ''}" />
 
+<<<<<<< HEAD
 			<input type="hidden" name="userId" th:value="${sessionUserId}" />
 			<input type="hidden" id="deletedKoutsuhiIds" name="deletedKoutsuhiIds" />
 			<input type="hidden" id="rejectKoutsuhiComment" name="comment" />
@@ -123,6 +179,141 @@
 		</form>
 
 	</div>
+=======
+    const methodsKoutsuhi = ["電車(片道)", "電車(往復)", "電車(定期券)", "バス(片道)", "バス(往復)", "バス(定期券)", "タクシー", "航空機", "その他"];
+    const methodsKeihi = [...methodsKoutsuhi];
+    let currentDate = new Date();
+    let koutsuhiIndex = 0;
+    let keihiIndex = 0;
+
+    function updateMonthLabel() {
+      const y = currentDate.getFullYear();
+      const m = currentDate.getMonth() + 1;
+      document.getElementById("currentMonthLabel").textContent = `${y}年${m}月`;
+    }
+
+    function calculateTotalAmount(tbodyId, totalSpanId) {
+      const tbody = document.getElementById(tbodyId);
+      const total = Array.from(tbody.querySelectorAll('input[name$=".amount"]'))
+        .map(input => parseInt(input.value || '0', 10))
+        .reduce((sum, val) => sum + (isNaN(val) ? 0 : val), 0);
+      document.getElementById(totalSpanId).textContent = total;
+    }
+
+    function reloadKoutsuhiTable(userId, dateObj) {
+      const yearMonth = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}`;
+      fetch(`/kintai/keihi/listKoutsuhi?userId=${encodeURIComponent(userId)}&yearMonth=${yearMonth}`)
+        .then(res => res.json())
+        .then(data => {
+          const tbody = document.getElementById('koutsuhiTableBody');
+          tbody.innerHTML = '';
+          const list = Array.isArray(data) ? data : [];
+          if (list.length === 0) {
+            addRow('koutsuhiTableBody', 'koutsuhiList', 0, methodsKoutsuhi);
+            koutsuhiIndex = 1;
+          } else {
+            list.forEach((row, i) => addRow('koutsuhiTableBody', 'koutsuhiList', i, methodsKoutsuhi, row));
+            koutsuhiIndex = list.length;
+          }
+          calculateTotalAmount('koutsuhiTableBody', 'totalKoutsuhiAmount');
+        })
+        .catch(() => {
+          alert('交通費の取得に失敗しました');
+        });
+    }
+
+    function reloadKeihiTable(userId, dateObj) {
+      const yearMonth = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}`;
+      fetch(`/kintai/keihi/listKeihi?userId=${encodeURIComponent(userId)}&yearMonth=${yearMonth}`)
+        .then(res => res.json())
+        .then(data => {
+          const tbody = document.getElementById('keihiTableBody');
+          tbody.innerHTML = '';
+          const list = Array.isArray(data) ? data : [];
+          if (list.length === 0) {
+            addRow('keihiTableBody', 'keihiList', 0, methodsKeihi);
+            keihiIndex = 1;
+          } else {
+            list.forEach((row, i) => addRow('keihiTableBody', 'keihiList', i, methodsKeihi, row));
+            keihiIndex = list.length;
+          }
+          calculateTotalAmount('keihiTableBody', 'totalKeihiAmount');
+        })
+        .catch(() => {
+          alert('経費の取得に失敗しました');
+        });
+    }
+
+    function saveForm(formId, url) {
+      const form = document.getElementById(formId);
+      const formData = new FormData(form);
+      fetch(url, { method: 'POST', body: formData })
+        .then(res => {
+          if (!res.ok) throw new Error();
+          alert(formId.includes('koutsuhi') ? '交通費を保存しました' : '経費を保存しました');
+          form.querySelectorAll('tr').forEach(tr => {
+            tr.querySelectorAll('input, select').forEach(input => {
+              if (!input.name.endsWith('Id')) input.disabled = true;
+            });
+            const editBtn = tr.querySelector('button.edit-row');
+            if (editBtn) editBtn.textContent = '編集';
+          });
+        })
+        .catch(() => alert('保存に失敗しました'));
+    }
+
+    document.getElementById('btn-save-koutsuhi').addEventListener('click', () => {
+      refreshIndexes('koutsuhiTableBody', 'koutsuhiList');
+      saveForm('koutsuhi-form', '/kintai/keihi/saveKoutsuhi');
+    });
+
+    document.getElementById('btn-save-keihi').addEventListener('click', () => {
+      refreshIndexes('keihiTableBody', 'keihiList');
+      saveForm('keihi-form', '/kintai/keihi/saveKeihi');
+    });
+
+    document.getElementById('add-koutsuhi-row').addEventListener('click', () => {
+      addRow('koutsuhiTableBody', 'koutsuhiList', koutsuhiIndex++, methodsKoutsuhi);
+      calculateTotalAmount('koutsuhiTableBody', 'totalKoutsuhiAmount');
+    });
+
+    document.getElementById('add-keihi-row').addEventListener('click', () => {
+      addRow('keihiTableBody', 'keihiList', keihiIndex++, methodsKeihi);
+      calculateTotalAmount('keihiTableBody', 'totalKeihiAmount');
+    });
+
+    document.getElementById('prevMonth').addEventListener('click', () => {
+      currentDate.setMonth(currentDate.getMonth() - 1);
+      updateMonthLabel();
+      reloadKoutsuhiTable(sessionUserName, currentDate);
+      reloadKeihiTable(sessionUserName, currentDate);
+    });
+
+    document.getElementById('nextMonth').addEventListener('click', () => {
+      currentDate.setMonth(currentDate.getMonth() + 1);
+      updateMonthLabel();
+      reloadKoutsuhiTable(sessionUserName, currentDate);
+      reloadKeihiTable(sessionUserName, currentDate);
+    });
+
+    // 金額変更時に自動で再計算
+    document.addEventListener('input', (e) => {
+      if (e.target.name && e.target.name.endsWith('.amount')) {
+        if (e.target.closest('#koutsuhiTableBody')) {
+          calculateTotalAmount('koutsuhiTableBody', 'totalKoutsuhiAmount');
+        } else if (e.target.closest('#keihiTableBody')) {
+          calculateTotalAmount('keihiTableBody', 'totalKeihiAmount');
+        }
+      }
+    });
+
+    // 初期表示
+    updateMonthLabel();
+    reloadKoutsuhiTable(sessionUserName, currentDate);
+    reloadKeihiTable(sessionUserName, currentDate);
+  </script>
+</div>
+>>>>>>> b1ef8f0c1f78745eaf83d00a3989b8a9bcb2d280
 </body>
 
 </html>

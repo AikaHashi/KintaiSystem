@@ -452,9 +452,32 @@ function saveKintaiData() {
 			? timeStrToMinutes(inputs[1].value) - timeStrToMinutes(inputs[0].value)
 			: 0;
 
+<<<<<<< HEAD
 		const plannedBreakMin = (inputs[3].value && inputs[2].value)
 			? timeStrToMinutes(inputs[3].value) - timeStrToMinutes(inputs[2].value)
 			: 0;
+=======
+    const entry = {
+      userId: userId,
+      workDate: cells[0].textContent.trim(),
+      userName: cells[1].textContent.trim(),
+      plannedWorkStartTime: inputs[0].value,
+      plannedWorkEndTime: inputs[1].value,
+      plannedBreakStartTime: inputs[2].value,
+      plannedBreakEndTime: inputs[3].value,
+      actualWorkStartTime: inputs[4].value,
+      actualWorkEndTime: inputs[5].value,
+      actualBreakStartTime: inputs[6].value,
+      actualBreakEndTime: inputs[7].value,
+      scheduledWorkHours: timeToDecimalString(inputs[8].value),
+      actualWorkHours: timeToDecimalString(inputs[9].value),
+      overtimeHours: timeToDecimalString(inputs[10].value),
+      deductionTime: timeToDecimalString(inputs[11].value),
+      kintaiStatus: inputs[12].value,
+      kintaiComment: inputs[13].value,
+      updatedBy: sessionUserName || targetUserName
+    };
+>>>>>>> b1ef8f0c1f78745eaf83d00a3989b8a9bcb2d280
 
 		let scheduledMin = plannedWorkMin - plannedBreakMin;
 
@@ -462,9 +485,64 @@ function saveKintaiData() {
 			? timeStrToMinutes(inputs[5].value) - timeStrToMinutes(inputs[4].value)
 			: 0;
 
+<<<<<<< HEAD
 		const actualBreakMin = (inputs[7].value && inputs[6].value)
 			? timeStrToMinutes(inputs[7].value) - timeStrToMinutes(inputs[6].value)
 			: 0;
+=======
+  fetch('/kintai/api/save-list/' + encodeURIComponent(userId), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(newKintaiList)
+  })
+    .then(async res => {
+      const contentType = res.headers.get("content-type");
+      const text = await res.text();
+      if (!res.ok) throw new Error(`HTTP error ${res.status}: ${text}`);
+      if (contentType && contentType.includes("application/json")) {
+        return JSON.parse(text);
+      } else {
+        throw new Error("サーバーからJSON形式でレスポンスが返されませんでした");
+      }
+    })
+    .then(json => {
+      alert('保存成功！');
+      console.log('保存されたデータ:', json);
+      
+     const savedList = Array.isArray(json)
+    ? json
+    : Array.isArray(json.data)
+      ? json.data
+      : [];
+
+  savedList.forEach(newDto => {
+    const idx = kintaiListJson.findIndex(k => k.workDate === newDto.workDate);
+    if (idx !== -1) {
+      kintaiListJson[idx] = newDto;
+    } else {
+      kintaiListJson.push(newDto);
+    }
+  });
+
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+  const newData = generateDummyData(year, month);
+  createTable(newData);
+  setTimeout(setOriginalValues, 100);
+
+  editBtn.style.display = 'inline';
+  saveBtn.style.display = 'none';
+  cancelBtn.style.display = 'none';
+    })
+    .catch(err => {
+      alert('保存失敗: ' + err.message);
+      console.error('保存失敗:', err);
+      
+    });
+setOriginalValues()
+  console.log('保存する勤怠データ:', newKintaiList);
+  kintaiListJson = newKintaiList;
+>>>>>>> b1ef8f0c1f78745eaf83d00a3989b8a9bcb2d280
 
 		let actualMin = actualWorkMin - actualBreakMin;
 
