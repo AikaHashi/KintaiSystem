@@ -11,21 +11,12 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
-<<<<<<< HEAD
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.ExceptionHandler;
-=======
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.DeleteMapping;
->>>>>>> b1ef8f0c1f78745eaf83d00a3989b8a9bcb2d280
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -75,7 +66,6 @@ public class KoutsuhiKeihiController {
 
         MUser user = userService.getUserOne(userId);
         if (user == null) {
-<<<<<<< HEAD
             model.addAttribute("errorMessage", "ユーザーが見つかりません");
             return "error/404";
         }
@@ -89,24 +79,14 @@ public class KoutsuhiKeihiController {
         List<Koutsuhi> koutsuhiList = koutsuhiService.findByUserIdAndYearMonth(userId, yearMonth);
         List<Keihi> keihiList = keihiService.findByUserIdAndYearMonth(userId, yearMonth);
 
-=======
-            model.addAttribute("errorMessage", "ユーザーが見つかりません。");
-            return "error/404"; // 404ページを用意しておくと良い
-        }
 
-        String currentYearMonth = java.time.LocalDate.now().withDayOfMonth(1).toString().substring(0, 7);
-
-        List<Koutsuhi> koutsuhiList = koutsuhiService.findByUserIdAndYearMonth(userId, currentYearMonth);
-        List<Keihi> keihiList = keihiService.findByUserIdAndYearMonth(userId, currentYearMonth);
-
->>>>>>> b1ef8f0c1f78745eaf83d00a3989b8a9bcb2d280
         KoutsuhiForm koutsuhiForm = new KoutsuhiForm();
         koutsuhiForm.setUserId(userId);
         koutsuhiForm.setKoutsuhi(koutsuhiList);
 
         KeihiForm keihiForm = new KeihiForm();
         keihiForm.setUserId(userId);
-<<<<<<< HEAD
+
         keihiForm.setKeihi(keihiList);
 
         MUser targetUser = userService.getUserOne(userId);
@@ -155,66 +135,20 @@ public class KoutsuhiKeihiController {
         CsrfToken csrfToken = (CsrfToken) request.getAttribute("_csrf");
         model.addAttribute("_csrf", csrfToken);
 
-=======
-        keihiForm.setKeihiList(keihiList);
-        
-        
-        // ログインユーザーの情報を取得
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String currentUserName = authentication.getName();
-        MUser loginUser = userService.getUserOne(currentUserName);
 
-     
-        
-        model.addAttribute("koutsuhiForm", koutsuhiForm);
-        model.addAttribute("keihiForm", keihiForm);
-        model.addAttribute("koutsuhiList", koutsuhiList);
-        model.addAttribute("keihiList", keihiList);
-        model.addAttribute("sessionUserId", userId); // ← 画面側でも `${sessionUserId}` を使うように統一
-        model.addAttribute("sessionUserName", loginUser.getUserName());
-        
->>>>>>> b1ef8f0c1f78745eaf83d00a3989b8a9bcb2d280
         return "kintai/koutsuhiKeihi";
     }
 
     /** ---------------------- 交通費保存 ---------------------- */
     @PostMapping("/kintai/keihi/saveKoutsuhi")
-<<<<<<< HEAD
+
     @ResponseBody
     public Map<String,Object> saveKoutsuhi(@ModelAttribute KoutsuhiForm form,
                                            @RequestParam(name="deletedKoutsuhiIds", required=false) String deletedIds,
                                            @RequestParam(value = "yearMonth", required = false) String  yearMonth) {
         if (yearMonth == null || yearMonth.isEmpty()) {
             yearMonth = new SimpleDateFormat("yyyy-MM").format(new Date());
-=======
-    public String saveKoutsuhi(
-            @ModelAttribute KoutsuhiForm form,
-            @RequestParam(name = "deletedKoutsuhiIds", required = false) String deletedKoutsuhiIds) {
 
-        if (deletedKoutsuhiIds != null && !deletedKoutsuhiIds.isEmpty()) {
-            for (String idStr : deletedKoutsuhiIds.split(",")) {
-                try {
-                    int id = Integer.parseInt(idStr.trim());
-                    koutsuhiService.delete(id);
-                } catch (NumberFormatException e) {
-                    System.err.println("Invalid Koutsuhi ID: " + idStr);
-                }
-            }
-        }
-
-        List<Koutsuhi> list = form.getKoutsuhiList();
-        if (list != null) {
-            for (Koutsuhi k : list) {
-                if (k.getDate() == null) continue;
-                k.setUserId(form.getUserId());
-
-                if (k.getKoutsuhiId() != null && k.getKoutsuhiId() > 0) {
-                    koutsuhiService.update(k);
-                } else {
-                    koutsuhiService.insertKoutsuhi(k);
-                }
-            }
->>>>>>> b1ef8f0c1f78745eaf83d00a3989b8a9bcb2d280
         }
 
         Map<String,Object> res = new HashMap<>();
@@ -247,42 +181,13 @@ public class KoutsuhiKeihiController {
 
     /** ---------------------- 経費保存 ---------------------- */
     @PostMapping("/kintai/keihi/saveKeihi")
-<<<<<<< HEAD
     @ResponseBody
     public Map<String,Object> saveKeihi(@ModelAttribute KeihiForm form,
                                         @RequestParam(name="deletedKeihiIds", required=false) String deletedIds,
                                         @RequestParam(value = "yearMonth", required = false) String  yearMonth) {
         if (yearMonth == null || yearMonth.isEmpty()) {
             yearMonth = new SimpleDateFormat("yyyy-MM").format(new Date());
-=======
-    public String saveKeihi(
-            @ModelAttribute KeihiForm form,
-            @RequestParam(name = "deletedKeihiIds", required = false) String deletedKeihiIds) {
 
-        if (deletedKeihiIds != null && !deletedKeihiIds.isEmpty()) {
-            for (String idStr : deletedKeihiIds.split(",")) {
-                try {
-                    int id = Integer.parseInt(idStr.trim());
-                    keihiService.delete(id);
-                } catch (NumberFormatException e) {
-                    System.err.println("Invalid Keihi ID: " + idStr);
-                }
-            }
-        }
-
-        List<Keihi> list = form.getKeihiList();
-        if (list != null) {
-            for (Keihi k : list) {
-                if (k.getDate() == null) continue;
-                k.setUserId(form.getUserId());
-
-                if (k.getKeihiId() != null && k.getKeihiId() > 0) {
-                    keihiService.update(k);
-                } else {
-                    keihiService.insertKeihi(k);
-                }
-            }
->>>>>>> b1ef8f0c1f78745eaf83d00a3989b8a9bcb2d280
         }
 
         Map<String,Object> res = new HashMap<>();
@@ -313,8 +218,6 @@ public class KoutsuhiKeihiController {
         return res;
     }
 
-<<<<<<< HEAD
-    /** ---------------------- 交通費・経費申請共通メソッド ---------------------- */
     /** ---------------------- 交通費・経費申請共通メソッド ---------------------- */
     private Map<String,Object> applyCommon(String userId, String category, String comment) {
         Map<String,Object> response = new HashMap<>();
@@ -441,33 +344,6 @@ public class KoutsuhiKeihiController {
 
     /** ---------------------- 交通費 ---------------------- */
     @PostMapping(value="/kintai/koutsuhi/apply/{userId:.+}", produces="application/json")
-=======
-    @DeleteMapping("/kintai/keihi/deleteKoutsuhi")
-    @ResponseBody
-    public ResponseEntity<String> deleteKoutsuhi(@RequestParam int koutsuhiId) {
-        int result = koutsuhiService.delete(koutsuhiId);
-        return result > 0
-                ? ResponseEntity.ok("削除成功")
-                : ResponseEntity.badRequest().body("削除失敗");
-    }
-
-    @DeleteMapping("/kintai/keihi/deleteKeihi")
-    @ResponseBody
-    public ResponseEntity<String> deleteKeihi(@RequestParam int keihiId) {
-        int result = keihiService.delete(keihiId);
-        return result > 0
-                ? ResponseEntity.ok("削除成功")
-                : ResponseEntity.badRequest().body("削除失敗");
-    }
-
-    @GetMapping("/kintai/keihi/listKoutsuhi")
-    @ResponseBody
-    public List<Koutsuhi> listKoutsuhiByMonth(@RequestParam String userId, @RequestParam String yearMonth) {
-        return koutsuhiService.findByUserIdAndYearMonth(userId, yearMonth);
-    }
-
-    @GetMapping("/kintai/keihi/listKeihi")
->>>>>>> b1ef8f0c1f78745eaf83d00a3989b8a9bcb2d280
     @ResponseBody
     public Map<String,Object> applyKoutsuhi(@RequestParam(name="comment", required=false) String comment) {
         Map<String,Object> res = new HashMap<>();
