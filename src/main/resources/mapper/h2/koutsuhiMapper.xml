@@ -53,8 +53,8 @@
 	<select id="findByUserIdAndYearMonth"
         resultType="com.example.domain.kintai.model.Koutsuhi">
     SELECT * FROM t_koutsuhi
-      WHERE user_id = #{userId}
-      AND FORMATDATETIME(date, 'yyyy-MM') = #{yearMonth}
+    WHERE user_id = #{userId}
+      AND DATE_FORMAT(date, '%Y-%m') = #{yearMonth}
     ORDER BY date DESC;
 </select>
 

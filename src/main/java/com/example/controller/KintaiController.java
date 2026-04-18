@@ -17,6 +17,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -33,6 +35,7 @@ import com.example.domain.kintai.service.CalendarService;
 import com.example.domain.kintai.service.KintaiService;
 import com.example.domain.kintai.service.UserService;
 import com.example.form.KintaiForm;
+import com.example.form.ValidGroup1;
 
 import jakarta.servlet.http.HttpSession;
 
@@ -98,13 +101,39 @@ public class KintaiController {
     }
     /** 勤怠情報送信処理 */
     @PostMapping
-    public String postKintai(@ModelAttribute KintaiForm form, Model model, HttpSession session) {
+    public String postKintai(
+        @Validated(ValidGroup1.class) @ModelAttribute KintaiForm form,
+        BindingResult bindingResult,
+        Model model,
+        HttpSession session
+    ){
 
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String currentUserName = authentication.getName();
 
         System.out.println("勤怠フォーム入力内容: " + form);
 
+        // ★ バリデーションエラー時はここで止める
+        if (bindingResult.hasErrors()) {
+
+            MUser user = userService.getUserOne(currentUserName);
+            LocalDate today = LocalDate.now();
+            List<DayInfo> calendarDays = calendarService.getCalendarDays(
+                today.getYear(), 
+                today.getMonthValue()
+            );
+
+            model.addAttribute("user", user);
+            model.addAttribute("calendarDays", calendarDays);
+            model.addAttribute("kintaiForm", form); // ←入力値保持
+            session.setAttribute("userName", currentUserName);
+            model.addAttribute("sessionUserName", currentUserName);
+            model.addAttribute("sessionDisplayName", user.getUserName());
+
+            return "kintai/kintai";
+        }
+
+        // ★ エラーなければ保存
         Kintai kintai = modelMapper.map(form, Kintai.class);
         kintai.setUserId(currentUserName);
 
@@ -116,39 +145,53 @@ public class KintaiController {
             if (rootCause != null) {
                 logger.error("根本原因: ", rootCause);
             }
-            throw e; // 必要に応じて例外処理を変更
+            throw e;
         }
 
+        // ★ 正常時画面再描画
         MUser user = userService.getUserOne(currentUserName);
         LocalDate today = LocalDate.now();
-        List<DayInfo> calendarDays = calendarService.getCalendarDays(today.getYear(), today.getMonthValue());
+        List<DayInfo> calendarDays = calendarService.getCalendarDays(
+            today.getYear(), 
+            today.getMonthValue()
+        );
 
         model.addAttribute("user", user);
         model.addAttribute("calendarDays", calendarDays);
-        model.addAttribute("kintaiForm", new KintaiForm());
+        model.addAttribute("kintaiForm", new KintaiForm()); // ←リセット
         session.setAttribute("userName", currentUserName);
         model.addAttribute("sessionUserName", currentUserName);
         model.addAttribute("sessionDisplayName", user.getUserName());
-        
+
         return "kintai/kintai";
     }
-
     /** カレンダーイベント取得 */
     @GetMapping("/events")
     @ResponseBody
-    public List<Map<String, Object>> getCalendarEvents() {
-        LocalDate today = LocalDate.now();
-        int year = today.getYear();
-        int month = today.getMonthValue();
+    public List<Map<String, Object>> getCalendarEvents(
+            @RequestParam String start,
+            @RequestParam String end) {
 
-        List<DayInfo> calendarDays = calendarService.getCalendarDays(year, month);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String userId = authentication.getName();
+
+        LocalDate startDate = LocalDate.parse(start.substring(0, 10));
+        LocalDate endDate = LocalDate.parse(end.substring(0, 10));
+
+        List<Kintai> kintaiList = kintaiService.getListByUserId(userId);
 
         List<Map<String, Object>> events = new ArrayList<>();
-        for (DayInfo day : calendarDays) {
-            Map<String, Object> event = new HashMap<>();
-            event.put("title", day.getDayOfWeek());
-            event.put("start", day.getDate().toString());
-            events.add(event);
+
+        for (Kintai k : kintaiList) {
+            LocalDate workDate = k.getWorkDate();
+
+            if (!workDate.isBefore(startDate) && workDate.isBefore(endDate)) {
+                Map<String, Object> event = new HashMap<>();
+                event.put("title", "✔ 登録済み");
+                event.put("start", workDate.toString());
+                event.put("color", "#28a745");
+                events.add(event);
+            }
         }
 
         return events;
@@ -172,84 +215,56 @@ public class KintaiController {
     
     @PostMapping("/api/save")
     @ResponseBody
-    public Map<String, Object> saveOrUpdateKintaiListAjax(@RequestBody KintaiForm form) {
+    public Map<String, Object> saveOrUpdateKintaiListAjax(
+        @Validated(ValidGroup1.class) @RequestBody KintaiForm form,
+        BindingResult bindingResult
+    ){
 
         Map<String, Object> response = new HashMap<>();
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String currentUserName = authentication.getName();
 
+        // ★ バリデーションエラー（改行対応）
+        if (bindingResult.hasErrors()) {
+
+            String errorMessage = bindingResult.getFieldErrors().stream()
+                .map(error -> error.getDefaultMessage())
+                .distinct() // 同じメッセージ重複防止
+                .collect(java.util.stream.Collectors.joining("\n"));
+
+            response.put("status", "error");
+            response.put("message", errorMessage);
+            return response;
+        }
+
         try {
-          //  for (KintaiForm form : formList) {
-                Kintai kintai = modelMapper.map(form, Kintai.class);
-                kintai.setUserId(currentUserName);
-                kintai.setUpdatedBy(currentUserName);
-                
-                LocalDateTime now = LocalDateTime.now();      
-                Timestamp timestamp = Timestamp.valueOf(now);
-              //  DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-             //   String formatted = now.format(formatter);
-                kintai.setUpdatedAt(timestamp);
-                
-                // 既存の勤怠データがあるかを確認して、更新 or 挿入
-                Kintai existing = kintaiService.selectOneByUserIdAndDate(currentUserName, kintai.getWorkDate());
-                if (existing != null) {
-                    kintaiService.update(kintai);
-                } else {
-                    kintaiService.insert(kintai);
-              //  }
+            Kintai kintai = modelMapper.map(form, Kintai.class);
+            kintai.setUserId(currentUserName);
+            kintai.setUpdatedBy(currentUserName);
+
+            LocalDateTime now = LocalDateTime.now();      
+            Timestamp timestamp = Timestamp.valueOf(now);
+            kintai.setUpdatedAt(timestamp);
+
+            // 既存チェック
+            Kintai existing = kintaiService
+                .selectOneByUserIdAndDate(currentUserName, kintai.getWorkDate());
+
+            if (existing != null) {
+                kintaiService.update(kintai);
+            } else {
+                kintaiService.insert(kintai);
             }
 
             response.put("status", "success");
             response.put("message", "勤怠情報を保存しました");
 
         } catch (Exception e) {
-            logger.error("勤怠の一括保存処理でエラーが発生しました", e);
+            logger.error("勤怠の保存処理でエラーが発生しました", e);
             response.put("status", "error");
-            response.put("message", "保存に失敗しました: " + e.getMessage());
+            response.put("message", "保存に失敗しました");
         }
 
         return response;
-        
-        
-        
     }
-
-    
-    
-//    @PostMapping("/api/save")
-//    @ResponseBody
-//    public Map<String, Object> saveOrUpdateKintaiAjax(@RequestBody KintaiForm form) {
-//
-//        Map<String, Object> response = new HashMap<>();
-//        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-//        String currentUserName = authentication.getName();
-//
-//        // form → entity に変換し、ログイン中のユーザーIDを設定
-//        Kintai kintai = modelMapper.map(form, Kintai.class);
-//        kintai.setUserId(currentUserName);
-//
-//        try {
-//            // 既存データがあるか確認
-//            Kintai existing = kintaiService.selectOneByUserIdAndDate(currentUserName, kintai.getWorkDate());
-//
-//            if (existing != null) {
-//                // 存在すれば更新
-//                kintaiService.update(kintai);
-//                response.put("status", "success");
-//                response.put("message", "勤怠情報を更新しました");
-//            } else {
-//                // なければ新規登録
-//                kintaiService.insert(kintai);
-//                response.put("status", "success");
-//                response.put("message", "勤怠情報を新規登録しました");
-//            }
-//
-//        } catch (Exception e) {
-//            logger.error("勤怠の保存処理でエラーが発生しました", e);
-//            response.put("status", "error");
-//            response.put("message", "保存に失敗しました: " + e.getMessage());
-//        }
-//
-//        return response;
-//    }
 }

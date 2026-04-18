@@ -202,7 +202,7 @@ loadInitialData();
 		const form = document.getElementById('koutsuhi-form');
 		const formData = new FormData(form);
 
-		fetch('/kintai/keihi/saveKoutsuhi', { method: 'POST', body: formData })
+		fetch('/kintai/koutsuhi/saveKoutsuhi', { method: 'POST', body: formData })
 			.then(res => res.text())
 			.then(text => {
 				let data;
@@ -212,6 +212,12 @@ loadInitialData();
 					alert("交通費データの保存に失敗しました。");
 					return;
 				}
+				
+				 // ★ここ！！！
+        if (data.status === "error") {
+            alert(data.errors.join("\n"));
+            return;
+        }
 
 				if (!window.kintaiListJson) window.kintaiListJson = {};
 				if (!window.kintaiListJson.koutsuhiByMonth) window.kintaiListJson.koutsuhiByMonth = {};
@@ -235,41 +241,51 @@ loadInitialData();
 	});
 
 	// ---------------- 保存（経費） ----------------
-	document.getElementById('btn-save-keihi').addEventListener('click', () => {
-		const form = document.getElementById('keihi-form');
-		const formData = new FormData(form);
+document.getElementById('btn-save-keihi').addEventListener('click', () => {
+	console.log("経費保存ボタン押された");
+	const form = document.getElementById('keihi-form');
+	const formData = new FormData(form);
 
-		fetch('/kintai/keihi/saveKeihi', { method: 'POST', body: formData })
-			.then(res => res.text())
-			.then(text => {
-				let data;
-				try { data = JSON.parse(text); }
-				catch (e) {
-					console.warn("経費保存時のJSON解析失敗:", text);
-					alert("経費データの保存に失敗しました。");
-					return;
-				}
-
-				if (!window.kintaiListJson) window.kintaiListJson = {};
-				if (!window.kintaiListJson.keihiByMonth) window.kintaiListJson.keihiByMonth = {};
-
-				let firstDateInput = form.querySelector('input[name^="keihi"][type="date"]');
-				let savedYearMonth = firstDateInput && firstDateInput.value
-					? firstDateInput.value.slice(0, 7)
-					: new Date().toISOString().slice(0, 7);
-
-				window.kintaiListJson.keihiByMonth[savedYearMonth] = data.keihi || [];
-				const displayYearMonth = currentDate.toISOString().slice(0, 7);
-				window.kintaiListJson.keihi = window.kintaiListJson.keihiByMonth[displayYearMonth] || [];
-
-				refreshTable();
-				alert("経費データを保存しました。");
-			})
-			.catch(err => {
-				console.error(err);
+	fetch('/kintai/keihi/saveKeihi', { method: 'POST', body: formData })
+		.then(res => res.text())
+		.then(text => {
+			let data;
+			try { data = JSON.parse(text); }
+			catch (e) {
+				console.warn("経費保存時のJSON解析失敗:", text);
 				alert("経費データの保存に失敗しました。");
-			});
-	});
+				return;
+			}
+
+			// ★ここが重要（成功/失敗判定）
+			if (data.status !== "success") {
+				alert("エラー：" + (data.message || (data.errors ? data.errors.join("\n") : "不明なエラー")));
+				return;
+			}
+
+			if (!window.kintaiListJson) window.kintaiListJson = {};
+			if (!window.kintaiListJson.keihiByMonth) window.kintaiListJson.keihiByMonth = {};
+
+			let firstDateInput = form.querySelector('input[name^="keihi"][type="date"]');
+			let savedYearMonth = firstDateInput && firstDateInput.value
+				? firstDateInput.value.slice(0, 7)
+				: new Date().toISOString().slice(0, 7);
+
+			window.kintaiListJson.keihiByMonth[savedYearMonth] = data.keihi || [];
+
+			const displayYearMonth = currentDate.toISOString().slice(0, 7);
+			window.kintaiListJson.keihi = window.kintaiListJson.keihiByMonth[displayYearMonth] || [];
+
+			refreshTable();
+
+			// ★成功時だけ出す
+			alert("経費データを保存しました。");
+		})
+		.catch(err => {
+			console.error(err);
+			alert("経費データの保存に失敗しました。");
+		});
+});
 
 	// ---------------- 申請・承認ボタン更新 ----------------
 // ---------------- 申請・承認ボタン更新 ----------------
@@ -285,7 +301,7 @@ function updateApplicationButtons(status, type, role = "") {
     // role によるボタン表示
     if (role === "ROLE_ADMIN") {
         if (applyBtn) applyBtn.style.display = "none";
-        if (reapplyBtn) reapplyBtn.style.display = "none";
+       if (reapplyBtn) reapplyBtn.style.display = "none";
         if (approveBtn) approveBtn.style.display = "inline-block";
         if (rejectBtn) rejectBtn.style.display = "inline-block";
     } else {
@@ -342,25 +358,35 @@ function fetchStatusAndUpdate() {
         cache: 'no-store',
         credentials: 'same-origin'
     })
-    .then(res => res.json())
-    .then(data => {
+   .then(res => {
+    console.log("status:", res.status);
+    return res.text();
+})
+.then(text => {
+    console.log("↓↓status API↓↓");
+    console.log(text);
 
-        const userRole = data.userRole; // ここで取得
-        console.log(statusKoutsuhi)
-        console.log("statusKoutsuhi:", data.statusKoutsuhi);
-        console.log("statusKeihi:", data.statusKeihi);
+    let data;
+    try {
+        data = JSON.parse(text);
+    } catch (e) {
+        console.error("JSONじゃない:", text);
+        alert("ステータス取得エラー（HTML返ってる）");
+        return;
+    }
 
-        // 交通費ボタン・ステータス更新
-        updateApplicationButtons(data.statusKoutsuhi || "", "Koutsuhi", userRole);
+    const userRole = data.userRole;
+    console.log("statusKoutsuhi:", data.statusKoutsuhi);
+    console.log("statusKeihi:", data.statusKeihi);
 
-        // 経費ボタン・ステータス更新
-        updateApplicationButtons(data.statusKeihi || "", "Keihi", userRole);
-
-    })
+    updateApplicationButtons(data.statusKoutsuhi || "", "Koutsuhi", userRole);
+    updateApplicationButtons(data.statusKeihi || "", "Keihi", userRole);
+})
     .catch(err => console.error("fetch エラー:", err));
 }
 
 // ---------------- 申請・承認ボタン共通 ----------------
+// 申請ボタン共通処理
 function handleAction(btnId, commentPrompt, controllerPath) {
     const btn = document.getElementById(btnId);
     if (!btn) return;
@@ -371,34 +397,24 @@ function handleAction(btnId, commentPrompt, controllerPath) {
         const comment = commentPrompt ? prompt(commentPrompt) || "" : "";
         const csrfTokenMeta = document.querySelector('meta[name="_csrf"]');
         const csrfToken = csrfTokenMeta ? csrfTokenMeta.content : '';
-        const params = new URLSearchParams({ comment, userId: window.targetUserId });
+        const yearMonth = currentDate.toISOString().slice(0, 7); // ★過去月対応もここで指定可能
 
-        // ★必ず url を初期化（ここを消しちゃダメ）
-        let url = controllerPath;
+        const params = new URLSearchParams({
+            comment,
+            userId: window.targetUserId,
+            yearMonth // ★fetch body に追加
+        });
 
-        // ★ボタン押下直後に仮ステータスを反映
-        let tempStatus = "";
-        if (controllerPath.includes("/apply")) tempStatus = "APPLYING";
-        else if (controllerPath.includes("/approve")) tempStatus = "APPROVED";
-        else if (controllerPath.includes("/reject")) tempStatus = "REJECTED";
+        // 仮ステータス反映
+        let tempStatus = controllerPath.includes("/apply") ? "APPLYING"
+                        : controllerPath.includes("/approve") ? "APPROVED"
+                        : controllerPath.includes("/reject") ? "REJECTED" : "";
 
-        const updateTemp = (type) => {
-            updateApplicationButtons(tempStatus, type);
-            const statusSpan = document.getElementById(`statusSpan${type}`);
-            if (statusSpan) {
-                statusSpan.textContent = ({
-                    "APPLYING": '申請中',
-                    "REJECTED": '差戻中',
-                    "APPROVED": '承認済'
-                })[tempStatus] || '未申請';
-            }
-        };
-
+        const updateTemp = (type) => updateApplicationButtons(tempStatus, type);
         if (btnId.includes("Koutsuhi")) updateTemp("Koutsuhi");
         if (btnId.includes("Keihi")) updateTemp("Keihi");
 
-        // ---------------- サーバー送信 ----------------
-        fetch(url, {
+        fetch(controllerPath, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
@@ -408,26 +424,35 @@ function handleAction(btnId, commentPrompt, controllerPath) {
             credentials: 'same-origin'
         })
         .then(res => {
-            if (!res.ok) throw new Error("HTTPエラー " + res.status);
-            return res.json();
-        })
-        .then(data => {
-            // サーバー返却の正確なステータスで上書き
-            fetchStatusAndUpdate();
-        })
+    console.log("status:", res.status);
+    return res.text();   // ←ここに変更
+})
+.then(text => {
+    console.log("↓↓レスポンス↓↓");
+    console.log(text);
+
+    let data;
+    try {
+        data = JSON.parse(text);
+    } catch (e) {
+        console.error("JSONじゃない（HTML返ってる）:", text);
+        alert("サーバーエラーです（ログ確認して）");
+        return;
+    }
+
+    fetchStatusAndUpdate();
+})
         .catch(err => console.error("fetch 例外:", err));
     });
 }
 // ---------------- ボタン登録 ----------------
-handleAction("applyKoutsuhiBtn", "交通費を申請しますか？", "/kintai/koutsuhi/apply");
-handleAction("reapplyKoutsuhiBtn", "交通費を再申請しますか？", "/kintai/koutsuhi/apply");
-handleAction("approveKoutsuhiBtn", "交通費を承認しますか？", `/kintai/koutsuhi/approve/${window.targetUserId}`);
-handleAction("rejectKoutsuhiBtn", "交通費を差戻しますか？", `/kintai/koutsuhi/reject/${window.targetUserId}`);
+handleAction("applyKoutsuhiBtn", "交通費を申請しますか？", `/kintai/koutsuhi/apply/${encodeURIComponent(window.targetUserId)}`);
+handleAction("reapplyKoutsuhiBtn", "交通費を再申請しますか？", `/kintai/koutsuhi/apply/${encodeURIComponent(window.targetUserId)}`);
+handleAction("approveKoutsuhiBtn", "交通費を承認しますか？", `/kintai/koutsuhi/approve/${encodeURIComponent(window.targetUserId)}`);
+handleAction("rejectKoutsuhiBtn", "交通費を差戻しますか？", `/kintai/koutsuhi/reject/${encodeURIComponent(window.targetUserId)}`);
 
 handleAction("applyKeihiBtn", "経費を申請しますか？", `/kintai/keihi/apply/${encodeURIComponent(window.targetUserId)}`);
 handleAction("reapplyKeihiBtn", "経費を再申請しますか？", `/kintai/keihi/apply/${encodeURIComponent(window.targetUserId)}`);
 handleAction("approveKeihiBtn", "経費を承認しますか？", `/kintai/keihi/approve/${encodeURIComponent(window.targetUserId)}`);
 handleAction("rejectKeihiBtn", "経費を差戻しますか？", `/kintai/keihi/reject/${encodeURIComponent(window.targetUserId)}`);
-
-
 });

@@ -2,45 +2,34 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
 <mapper namespace="com.example.repository.UserMapper">
-
+	
 	<!-- マッピング定義（ユーザー） -->
 	<resultMap type="com.example.domain.kintai.model.MUser" id="user">
 		<id column="user_id" property="userId" />
 		<result column="password" property="password" />
 		<result column="user_name" property="userName" />
 		<result column="birthday" property="birthday" />
-		<result column="age" property="age" />
 		<result column="gender" property="gender" />
-		<result column="department_id" property="departmentId" />
 		<result column="role" property="role" />
-		<association property="department" resultMap="department" />
-		<!-- salaryList 削除 -->
 	</resultMap>
 
-	<!-- マッピング定義（部署） -->
-	<resultMap type="com.example.domain.kintai.model.Department" id="department">
-		<id column="department_id" property="departmentId" />
-		<result column="department_name" property="departmentName" />
-	</resultMap>
 
 	<!-- ユーザー１件登録 -->
 	<insert id="insertOne">
 		insert into m_user(
-		user_id, password, user_name, birthday, age, gender, department_id, role
+		user_id, password, user_name, birthday, gender, role
 		)
 		values(
-		#{userId}, #{password}, #{userName}, #{birthday}, #{age}, #{gender},
+		#{userId}, #{password}, #{userName}, #{birthday}, #{gender},
 		#{departmentId}, #{role}
 		)
 	</insert>
 
 	<!-- ユーザー複数件取得 -->
 	<select id="findMany" resultMap="user"> select m_user.user_id,
-		m_user.password, m_user.user_name, m_user.birthday, m_user.age,
-		m_user.gender, m_user.department_id, m_user.role,
-		m_department.department_id, m_department.department_name from m_user
-		left join m_department on m_user.department_id =
-		m_department.department_id <where>
+		m_user.password, m_user.user_name, m_user.birthday,
+		m_user.gender, m_user.role from m_user
+		<where>
 			<if test="userId != null">
 				m_user.user_id like '%' || #{userId} || '%'
 			</if>
@@ -57,14 +46,9 @@
 		m_user.password,
 		m_user.user_name,
 		m_user.birthday,
-		m_user.age,
 		m_user.gender,
-		 m_user.role,
-		m_department.department_id,
-		m_department.department_name
+		 m_user.role
 		from m_user
-		left join m_department on m_user.department_id =
-		m_department.department_id
 		where m_user.user_id = #{userId}
 	</select>
 
@@ -87,15 +71,9 @@
 		m_user.password,
 		m_user.user_name,
 		m_user.birthday,
-		m_user.age,
 		m_user.gender,
-		m_user.department_id,
-		m_user.role,
-		m_department.department_id,
-		m_department.department_name
+		m_user.role
 		from m_user
-		left join m_department on m_user.department_id =
-		m_department.department_id
 		where m_user.user_id = #{userId}
 	</select>
 

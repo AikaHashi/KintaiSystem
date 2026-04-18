@@ -7,7 +7,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -170,62 +172,150 @@ public class KintaiListController {
 
         logger.info("save-list API 到達 userId=" + userId);
         Map<String, Object> response = new HashMap<>();
+
         try {
-            List<KintaiDto> savedDtos = dtoList.stream()
-                    .map(dto -> {
-                        // --- LocalTime → String 補完 ---
-                        dto.syncLocalTimeToString();
 
-                        Kintai kintai = modelMapper.map(dto, Kintai.class);
-                        kintai.setUserId(userId);
-                        kintai.setUpdatedAt(Timestamp.valueOf(LocalDateTime.now()));
+            // ===============================
+            // 0. データなしチェック（追加）
+            // ===============================
+            if (dtoList == null || dtoList.isEmpty()) {
+                response.put("status", "error");
+                response.put("message", "保存するデータはありません");
+                return response;
+            }
 
-                        // --- 文字列時刻 → LocalTime 変換（安全版） ---
-                        kintai.setPlannedWorkStartTime(parseTimeSafely(dto.getPlannedWorkStartTimeStr()));
-                        kintai.setPlannedWorkEndTime(parseTimeSafely(dto.getPlannedWorkEndTimeStr()));
-                        kintai.setPlannedBreakStartTime(parseTimeSafely(dto.getPlannedBreakStartTimeStr()));
-                        kintai.setPlannedBreakEndTime(parseTimeSafely(dto.getPlannedBreakEndTimeStr()));
-                        kintai.setActualWorkStartTime(parseTimeSafely(dto.getActualWorkStartTimeStr()));
-                        kintai.setActualWorkEndTime(parseTimeSafely(dto.getActualWorkEndTimeStr()));
-                        kintai.setActualBreakStartTime(parseTimeSafely(dto.getActualBreakStartTimeStr()));
-                        kintai.setActualBreakEndTime(parseTimeSafely(dto.getActualBreakEndTimeStr()));
+            // ===============================
+            // ① 行単位バリデーション
+            // ===============================
+            Map<Integer, List<String>> errorMap = new LinkedHashMap<>();
 
-                        // --- 勤務時間計算 ---
-                        try {
-                            BigDecimal scheduledHours = calculateWorkHours(dto.getPlannedWorkStartTimeStr(), dto.getPlannedWorkEndTimeStr(),
-                                                                            dto.getPlannedBreakStartTimeStr(), dto.getPlannedBreakEndTimeStr());
-                            kintai.setScheduledWorkHours(scheduledHours);
-                            dto.setScheduledWorkHours(scheduledHours.setScale(2, RoundingMode.HALF_UP).toString());
+            for (int i = 0; i < dtoList.size(); i++) {
 
-                            BigDecimal actualHours = calculateWorkHours(dto.getActualWorkStartTimeStr(), dto.getActualWorkEndTimeStr(),
-                                                                        dto.getActualBreakStartTimeStr(), dto.getActualBreakEndTimeStr());
-                            kintai.setActualWorkHours(actualHours);
-                            dto.setActualWorkHours(actualHours.setScale(2, RoundingMode.HALF_UP).toString());
+                KintaiDto dto = dtoList.get(i);
+                dto.syncLocalTimeToString();
 
-                            BigDecimal deductionTime = TimeUtil.calculateDeduction(dto.isHolidayOrSubstitute(), scheduledHours, actualHours);
-                            kintai.setDeductionTime(deductionTime);
-                            dto.setDeductionTime(deductionTime.setScale(2, RoundingMode.HALF_UP).toString());
-                        } catch (Exception ex) {
-                            logger.error("勤務時間計算でエラー", ex);
-                            kintai.setScheduledWorkHours(BigDecimal.ZERO);
-                            kintai.setActualWorkHours(BigDecimal.ZERO);
-                            kintai.setDeductionTime(BigDecimal.ZERO);
+                List<String> rowErrors = new ArrayList<>();
 
-                            dto.setScheduledWorkHours("0.00");
-                            dto.setActualWorkHours("0.00");
-                            dto.setDeductionTime("0.00");
+                if (dto.getWorkDate() == null) {
+                    rowErrors.add("日付は必須です");
+                }
+                if (dto.getPlannedWorkStartTimeStr() == null || dto.getPlannedWorkStartTimeStr().isEmpty()) {
+                    rowErrors.add("予定開始時刻は必須です");
+                }
+                if (dto.getPlannedWorkEndTimeStr() == null || dto.getPlannedWorkEndTimeStr().isEmpty()) {
+                    rowErrors.add("予定終了時刻は必須です");
+                }
+                if (dto.getActualWorkStartTimeStr() == null || dto.getActualWorkStartTimeStr().isEmpty()) {
+                    rowErrors.add("実績開始時刻は必須です");
+                }
+                if (dto.getActualWorkEndTimeStr() == null || dto.getActualWorkEndTimeStr().isEmpty()) {
+                    rowErrors.add("実績終了時刻は必須です");
+                }
+
+                if (!rowErrors.isEmpty()) {
+                    errorMap.put(i, rowErrors);
+                }
+            }
+
+            // ===============================
+            // ② エラー整形
+            // ===============================
+            if (!errorMap.isEmpty()) {
+
+                List<String> errors = new ArrayList<>();
+
+                errorMap.entrySet().stream()
+                    .sorted(Map.Entry.comparingByKey())
+                    .forEach(entry -> {
+
+                        int row = entry.getKey();
+                        List<String> msgs = entry.getValue();
+
+                        StringBuilder sb = new StringBuilder();
+                        KintaiDto dto = dtoList.get(row);
+                        sb.append(dto.getWorkDate()).append(":\n");
+
+                        for (String m : msgs) {
+                            sb.append("・").append(m).append("\n");
                         }
 
-                        // --- DB保存 ---
-                        Kintai existing = kintaiService.selectOneByUserIdAndDate(userId, kintai.getWorkDate());
-                        if (existing != null) {
-                            kintaiService.update(kintai);
-                        } else {
-                            kintaiService.insert(kintai);
-                        }
-                        return modelMapper.map(kintai, KintaiDto.class);
-                    })
-                    .collect(Collectors.toList());
+                        errors.add(sb.toString());
+                    });
+
+                response.put("status", "error");
+                response.put("errors", errors);
+                return response;
+            }
+
+            // ===============================
+            // ③ 保存処理
+            // ===============================
+            List<KintaiDto> savedDtos = new ArrayList<>();
+
+            for (KintaiDto dto : dtoList) {
+
+                dto.syncLocalTimeToString();
+
+                Kintai kintai = modelMapper.map(dto, Kintai.class);
+                kintai.setUserId(userId);
+                kintai.setUpdatedAt(Timestamp.valueOf(LocalDateTime.now()));
+
+                // 時刻変換
+                kintai.setPlannedWorkStartTime(parseTimeSafely(dto.getPlannedWorkStartTimeStr()));
+                kintai.setPlannedWorkEndTime(parseTimeSafely(dto.getPlannedWorkEndTimeStr()));
+                kintai.setPlannedBreakStartTime(parseTimeSafely(dto.getPlannedBreakStartTimeStr()));
+                kintai.setPlannedBreakEndTime(parseTimeSafely(dto.getPlannedBreakEndTimeStr()));
+                kintai.setActualWorkStartTime(parseTimeSafely(dto.getActualWorkStartTimeStr()));
+                kintai.setActualWorkEndTime(parseTimeSafely(dto.getActualWorkEndTimeStr()));
+                kintai.setActualBreakStartTime(parseTimeSafely(dto.getActualBreakStartTimeStr()));
+                kintai.setActualBreakEndTime(parseTimeSafely(dto.getActualBreakEndTimeStr()));
+
+                try {
+                    BigDecimal scheduledHours = calculateWorkHours(
+                            dto.getPlannedWorkStartTimeStr(),
+                            dto.getPlannedWorkEndTimeStr(),
+                            dto.getPlannedBreakStartTimeStr(),
+                            dto.getPlannedBreakEndTimeStr());
+
+                    kintai.setScheduledWorkHours(scheduledHours);
+                    dto.setScheduledWorkHours(scheduledHours.setScale(2, RoundingMode.HALF_UP).toString());
+
+                    BigDecimal actualHours = calculateWorkHours(
+                            dto.getActualWorkStartTimeStr(),
+                            dto.getActualWorkEndTimeStr(),
+                            dto.getActualBreakStartTimeStr(),
+                            dto.getActualBreakEndTimeStr());
+
+                    kintai.setActualWorkHours(actualHours);
+                    dto.setActualWorkHours(actualHours.setScale(2, RoundingMode.HALF_UP).toString());
+
+                    BigDecimal deductionTime = TimeUtil.calculateDeduction(
+                            dto.isHolidayOrSubstitute(), scheduledHours, actualHours);
+
+                    kintai.setDeductionTime(deductionTime);
+                    dto.setDeductionTime(deductionTime.setScale(2, RoundingMode.HALF_UP).toString());
+
+                } catch (Exception ex) {
+                    logger.error("勤務時間計算でエラー", ex);
+
+                    kintai.setScheduledWorkHours(BigDecimal.ZERO);
+                    kintai.setActualWorkHours(BigDecimal.ZERO);
+                    kintai.setDeductionTime(BigDecimal.ZERO);
+
+                    dto.setScheduledWorkHours("0.00");
+                    dto.setActualWorkHours("0.00");
+                    dto.setDeductionTime("0.00");
+                }
+
+                Kintai existing = kintaiService.selectOneByUserIdAndDate(userId, kintai.getWorkDate());
+                if (existing != null) {
+                    kintaiService.update(kintai);
+                } else {
+                    kintaiService.insert(kintai);
+                }
+
+                savedDtos.add(modelMapper.map(kintai, KintaiDto.class));
+            }
 
             response.put("status", "success");
             response.put("message", "勤怠情報を保存しました");
@@ -234,11 +324,11 @@ public class KintaiListController {
         } catch (Exception e) {
             logger.error("勤怠の一括保存処理でエラーが発生しました", e);
             response.put("status", "error");
-            response.put("message", "保存に失敗しました: " + e.getMessage());
+            response.put("message", "保存に失敗しました。サーバーを確認してください");
         }
+
         return response;
     }
-
     // --- 勤務時間計算補助メソッド ---
     private BigDecimal calculateWorkHours(String start, String end, String breakStart, String breakEnd) {
         if (start == null || end == null) return BigDecimal.ZERO;
@@ -430,4 +520,5 @@ public class KintaiListController {
         }
         return res;
     }
+    
 }

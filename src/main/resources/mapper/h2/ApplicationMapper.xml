@@ -10,7 +10,7 @@
         FROM t_application
         WHERE user_id = #{userId}
           AND category = #{category}
-          AND year_month = #{yearMonth}
+          AND `year_month` = #{yearMonth}
     </select>
 
     <!-- Application エンティティで1件取得 -->
@@ -19,13 +19,13 @@
         FROM t_application
         WHERE user_id = #{userId}
           AND category = #{category}
-          AND year_month = #{yearMonth}
+          AND `year_month` = #{yearMonth}
     </select>
 
     <!-- 新規登録 -->
     <insert id="insert" parameterType="com.example.domain.kintai.model.Application">
         INSERT INTO t_application
-        (user_id, category, year_month, status, comment, created_at, updated_at)
+        (user_id, category, `year_month`, status, comment, created_at, updated_at)
         VALUES
         (#{userId}, #{category}, #{yearMonth}, #{status}, #{comment}, #{createdAt}, #{updatedAt})
     </insert>

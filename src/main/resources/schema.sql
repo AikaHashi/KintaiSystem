@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS employee
 );
 
 /* ユーザーマスタ */
-CREATE TABLE IF NOT EXISTS m_user(
+/*CREATE TABLE IF NOT EXISTS m_user(
  user_id VARCHAR(50) PRIMARY KEY
  ,password VARCHAR(100)
  ,user_name VARCHAR(50)
@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS m_user(
  ,gender INT
  ,department_id INT
  ,role VARCHAR(50)
-);
+);*/
 
 /* 部署マスタ */
 CREATE TABLE IF NOT EXISTS m_department(
@@ -97,14 +97,3 @@ CREATE TABLE IF NOT EXISTS t_keihi (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS t_application (
-  application_id INT AUTO_INCREMENT PRIMARY KEY,
-  user_id VARCHAR(50) NOT NULL,        -- 申請者
-  category VARCHAR(20) NOT NULL,       -- 'KINTAI', 'KOUTSUHI', 'KEIHI'
-  year_month CHAR(7) NOT NULL,         -- '2025-08' など
-  status VARCHAR(20) NOT NULL,         -- 'APPLYING','REJECTED','REAPPLYING','APPROVED'
-  comment TEXT,                        -- 差戻コメントなど
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT fk_app_user FOREIGN KEY (user_id) REFERENCES m_user(user_id)
-);

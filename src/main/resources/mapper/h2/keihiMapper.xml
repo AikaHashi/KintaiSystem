@@ -4,7 +4,7 @@
 <mapper namespace="com.example.repository.KeihiMapper">
 
 	<!-- 登録 -->
-	 <insert id="insertKeihi"
+	<insert id="insertKeihi"
         parameterType="com.example.domain.kintai.model.Keihi"
         useGeneratedKeys="true" keyProperty="keihiId">
         INSERT INTO t_keihi (
@@ -48,12 +48,13 @@
 		WHERE keihi_id = #{keihiId}
 	</delete>
 
+	<!-- 年月で絞り込み -->
 	<select id="findByUserIdAndYearMonth"
         resultType="com.example.domain.kintai.model.Keihi">
-    SELECT * FROM t_keihi
-    WHERE user_id = #{userId}
-      AND FORMATDATETIME(date, 'yyyy-MM') = #{yearMonth}
-    ORDER BY date DESC;
-</select>
+	    SELECT * FROM t_keihi
+	    WHERE user_id = #{userId}
+	      AND DATE_FORMAT(date, '%Y-%m') = #{yearMonth}
+	    ORDER BY date DESC
+	</select>
 
 </mapper>

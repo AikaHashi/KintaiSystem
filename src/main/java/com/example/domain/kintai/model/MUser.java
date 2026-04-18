@@ -14,7 +14,6 @@ public class MUser {
     private String password;
     private String userName;
     private LocalDate birthday;
-    private Integer age;
     private Integer gender;
     private Integer departmentId;
     private String role;
@@ -25,7 +24,7 @@ public class MUser {
     // 部門との関連
 //    @ManyToOne(optional = true)
 //    @JoinColumn(insertable = false, updatable = false, name = "departmentId")
-    private Department department;
+    //private Department department;
 
     // 給与リストとの関連
 //    @OneToMany(mappedBy = "user")

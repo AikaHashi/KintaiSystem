@@ -423,6 +423,11 @@ function minutesToDecimalHours(min) {
 
 
 function saveKintaiData() {
+	if (!isChanged()) {
+		alert('変更された行はありません');
+		return;
+	}
+
 	const userId = targetUserId;
 	const rows = document.querySelectorAll('#kintaiTable tbody tr');
 	let newKintaiList = [];
@@ -439,24 +444,22 @@ function saveKintaiData() {
 		if (inputs.length < 14) return;
 
 		// --- 記入行のみ保存判定 ---
-		const timeAndCommentInputs = Array.from(inputs).slice(0, 12); // 時間や休憩、その他入力
-		const commentInput = inputs[13]; // コメント
+		const timeAndCommentInputs = Array.from(inputs).slice(0, 12);
+		const commentInput = inputs[13];
 		const anyFilled = timeAndCommentInputs.some(input => {
 			const v = (input.value || '').trim();
 			return v !== '' && v !== '00:00' && v !== 'nothing';
 		}) || (commentInput && commentInput.value && commentInput.value.trim() !== '');
-		if (!anyFilled) return; // 空行はスキップ
+		if (!anyFilled) return;
 
-		// --- 基本計算 ---
+		// --- 時間計算 ---
 		const plannedWorkMin = (inputs[1].value && inputs[0].value)
 			? timeStrToMinutes(inputs[1].value) - timeStrToMinutes(inputs[0].value)
 			: 0;
 
-
 		const plannedBreakMin = (inputs[3].value && inputs[2].value)
 			? timeStrToMinutes(inputs[3].value) - timeStrToMinutes(inputs[2].value)
 			: 0;
-
 
 		let scheduledMin = plannedWorkMin - plannedBreakMin;
 
@@ -464,53 +467,48 @@ function saveKintaiData() {
 			? timeStrToMinutes(inputs[5].value) - timeStrToMinutes(inputs[4].value)
 			: 0;
 
-
 		const actualBreakMin = (inputs[7].value && inputs[6].value)
 			? timeStrToMinutes(inputs[7].value) - timeStrToMinutes(inputs[6].value)
 			: 0;
 
-
 		let actualMin = actualWorkMin - actualBreakMin;
 
-		// --- 半休・全休・代休対応 ---
 		let adjustedActualMin = actualMin;
 		let adjustedBreakMin = actualBreakMin;
 		let adjustedOvertimeMin = Math.max(0, actualMin - scheduledMin);
 		let deductionMin = Math.max(0, scheduledMin - adjustedActualMin);
 
-		// ▼ saveKintaiData内：半休・全休・代休対応
-switch (inputs[12].value) { // kintaiStatus
-	case 'paid_leave_half':
-		adjustedActualMin = actualMin / 2;
-		adjustedBreakMin = 0;
-		adjustedOvertimeMin = 0;
-		deductionMin = scheduledMin - adjustedActualMin;
-		counts.paidLeave += 0.5;
-		break;
-	case 'paid_leave_full':
-	case 'substitute_leave':
-	case 'compensatory_leave':
-	case 'bereavement_leave':
-	case 'sick_leave':
-	case 'maternity_leave':
-	case 'childcare_leave':
-	case 'other_leave':
-		adjustedActualMin = 0;
-		adjustedBreakMin = 0;
-		adjustedOvertimeMin = 0;
-		deductionMin = 0;
-		// 所定時間は予定時間を維持
-		// scheduledMin = plannedWorkMin - plannedBreakMin;
-		const leaveKey = inputs[12].value.replace(/_leave$/, '');
-		if (counts.hasOwnProperty(leaveKey)) counts[leaveKey] += 1;
-		break;
-	default:
-		deductionMin = Math.max(0, scheduledMin - adjustedActualMin);
-		if (inputs[12].value === 'nothing' && actualMin > 0) counts.attendance += 1;
-		break;
-}
+		switch (inputs[12].value) {
+			case 'paid_leave_half':
+				adjustedActualMin = actualMin / 2;
+				adjustedBreakMin = 0;
+				adjustedOvertimeMin = 0;
+				deductionMin = scheduledMin - adjustedActualMin;
+				counts.paidLeave += 0.5;
+				break;
 
-		// --- DTO生成 ---
+			case 'paid_leave_full':
+			case 'substitute_leave':
+			case 'compensatory_leave':
+			case 'bereavement_leave':
+			case 'sick_leave':
+			case 'maternity_leave':
+			case 'childcare_leave':
+			case 'other_leave':
+				adjustedActualMin = 0;
+				adjustedBreakMin = 0;
+				adjustedOvertimeMin = 0;
+				deductionMin = 0;
+				const leaveKey = inputs[12].value.replace(/_leave$/, '');
+				if (counts.hasOwnProperty(leaveKey)) counts[leaveKey] += 1;
+				break;
+
+			default:
+				deductionMin = Math.max(0, scheduledMin - adjustedActualMin);
+				if (inputs[12].value === 'nothing' && actualMin > 0) counts.attendance += 1;
+				break;
+		}
+
 		const entry = {
 			userId: userId,
 			workDate: cells[0].textContent.trim(),
@@ -523,7 +521,6 @@ switch (inputs[12].value) { // kintaiStatus
 			actualWorkEndTime: inputs[5].value,
 			actualBreakStartTime: inputs[6].value,
 			actualBreakEndTime: inputs[7].value,
-			// HH:MM → 小数時間に変換
 			scheduledWorkHours: minutesToTimeStr(scheduledMin),
 			actualWorkHours: minutesToTimeStr(adjustedActualMin),
 			overtimeHours: minutesToTimeStr(adjustedOvertimeMin),
@@ -536,63 +533,76 @@ switch (inputs[12].value) { // kintaiStatus
 		newKintaiList.push(entry);
 	});
 
-	// --- 欠勤計算 ---
 	counts.absent = counts.paidLeave + counts.substituteLeave + counts.compensatoryLeave +
 		counts.bereavementLeave + counts.sickLeave + counts.maternityLeave +
 		counts.childcareLeave + counts.otherLeave;
 
-	if (newKintaiList.length === 0) {
-		alert('変更された行がありません');
-		setOriginalValues();
-		return;
-	}
+	if (!newKintaiList || newKintaiList.length === 0) {
+    console.log("newKintaiList:", newKintaiList);
+    alert('変更された行がありません');
+    return;
+}
 
-	// --- API送信（CSRFトークン付き） ---
 	const csrfMeta = document.querySelector('meta[name="_csrf"]');
 	const csrfToken = csrfMeta ? csrfMeta.content : '';
-
-	console.log('送信URL:', '/kintai/api/save-list/' + encodeURIComponent(userId));
-	console.log('送信データ:', JSON.stringify(newKintaiList));
 
 	fetch('/kintai/api/save-list/' + encodeURIComponent(userId), {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
 		body: JSON.stringify(newKintaiList)
 	})
-		.then(async res => {
-			const text = await res.text();
-			if (!res.ok) throw new Error(`HTTP ${res.status}: ${text.substring(0, 100)}`);
-			return JSON.parse(text);
-		})
-		.then(json => {
-			const savedList = Array.isArray(json) ? json : (Array.isArray(json.data) ? json.data : []);
+	.then(res => res.json())
+	.then(json => {
 
-			savedList.forEach(dto => {
-				dto.updatedBy = sessionUserName || targetUserName;
-				const idx = kintaiListJson.findIndex(k => k.workDate === dto.workDate);
-				if (idx !== -1) kintaiListJson[idx] = dto;
-				else kintaiListJson.push(dto);
-			});
+		// ===============================
+		// ❌ エラーなら完全停止
+		// ===============================
+		if (json.status === "error") {
 
-			alert('保存成功！');
-			const year = currentDate.getFullYear();
-			const month = currentDate.getMonth();
-			const newData = generateDummyData(year, month);
-			createTable(newData);
-			setTimeout(setOriginalValues, 100);
+			let msg = json.message || "保存に失敗しました";
 
-			editBtn.style.display = 'inline';
-			saveBtn.style.display = 'none';
-			cancelBtn.style.display = 'none';
-		})
-		.catch(err => {
-			alert('保存失敗: ' + err.message);
-			console.error('保存失敗:', err);
+			if (json.errors && json.errors.length > 0) {
+				msg += "\n\n" + json.errors.join("\n");
+			}
+
+			alert(msg);
+
+			// ★ここ重要：成功処理に行かせない
+			return;
+		}
+
+		// ===============================
+		// ✅ 成功時のみ
+		// ===============================
+		const savedList = Array.isArray(json.data) ? json.data : [];
+
+		savedList.forEach(dto => {
+			dto.updatedBy = sessionUserName || targetUserName;
+			const idx = kintaiListJson.findIndex(k => k.workDate === dto.workDate);
+			if (idx !== -1) kintaiListJson[idx] = dto;
+			else kintaiListJson.push(dto);
 		});
 
-	kintaiListJson = newKintaiList;
-	document.querySelectorAll('input, select').forEach(el => el.disabled = true);
-	isEditing = false;
+		alert('保存成功！');
+
+		const year = currentDate.getFullYear();
+		const month = currentDate.getMonth();
+		const newData = generateDummyData(year, month);
+		createTable(newData);
+		setTimeout(setOriginalValues, 100);
+
+		editBtn.style.display = 'inline';
+		saveBtn.style.display = 'none';
+		cancelBtn.style.display = 'none';
+
+		kintaiListJson = newKintaiList;
+		document.querySelectorAll('input, select').forEach(el => el.disabled = true);
+		isEditing = false;
+	})
+	.catch(err => {
+		console.error('保存失敗:', err);
+		alert('通信エラーが発生しました');
+	});
 }
 
 // ▼ 月移動イベントと初期表示
@@ -686,6 +696,7 @@ function fetchStatusAndUpdate() {
 }
 
 // ▼ 申請・承認フロー共通処理
+// ▼ 申請・承認フロー共通処理
 function handleAction(buttonId, formId, commentInputId, confirmMsg) {
 	const btn = document.getElementById(buttonId);
 	if (!btn) return;
@@ -693,11 +704,10 @@ function handleAction(buttonId, formId, commentInputId, confirmMsg) {
 	btn.addEventListener("click", async () => {
 		if (!confirm(confirmMsg)) return;
 
-		// コメント入力ポップアップ
 		let comment = "";
-		// commentInputId に関係なく常に prompt を出す
 		comment = prompt("コメントを入力してください", commentInputId ? document.getElementById(commentInputId)?.value || "" : "");
-		if (comment === null) return; // キャンセルなら処理中止
+		if (comment === null) return;
+
 		if (commentInputId) {
 			const commentInput = document.getElementById(commentInputId);
 			if (commentInput) commentInput.value = comment;
@@ -707,11 +717,9 @@ function handleAction(buttonId, formId, commentInputId, confirmMsg) {
 			const form = document.getElementById(formId);
 			if (!form) throw new Error("フォームが見つかりません");
 
-			// FormData作成
 			const formData = new FormData(form);
 			formData.set("comment", comment);
 
-			// URLSearchParams に変換してPOST
 			const params = new URLSearchParams(formData);
 
 			const response = await fetch(form.action, {
@@ -721,14 +729,12 @@ function handleAction(buttonId, formId, commentInputId, confirmMsg) {
 
 			if (!response.ok) throw new Error(`HTTPエラー: ${response.status}`);
 
-			// JSONを安全に取得
 			let data = {};
 			try { data = await response.json(); }
 			catch (e) { console.warn("JSON変換失敗:", e); }
 
 			console.log(buttonId + " 結果:", data);
 
-			// ステータス更新
 			updateApplicationButtons?.(data.status || "");
 			const statusSpan = document.querySelector("#statusSpan");
 			if (statusSpan) {
@@ -744,6 +750,27 @@ function handleAction(buttonId, formId, commentInputId, confirmMsg) {
 			alert("通信に失敗しました。再度お試しください。");
 		}
 	});
+}
+
+
+// ★完全に外に置く（ここ重要）
+function isChanged() {
+	const trList = document.querySelectorAll('#kintaiTable tbody tr');
+
+	for (let i = 0; i < trList.length; i++) {
+		const inputs = trList[i].querySelectorAll('input, select');
+
+		for (let j = 0; j < inputs.length; j++) {
+			const currentValue = inputs[j].value;
+			const originalValue = originalData[i]?.[j];
+
+			if (currentValue !== originalValue) {
+				return true;
+			}
+		}
+	}
+
+	return false;
 }
 
 

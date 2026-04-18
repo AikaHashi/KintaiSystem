@@ -7,8 +7,12 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 
+import org.hibernate.validator.constraints.Length;
+
+import com.example.form.ValidGroup1;
 import com.example.util.TimeUtil;
 
+import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 @Data
@@ -22,12 +26,18 @@ public class KintaiDto {
     // ===============================
     // フロントからの時刻文字列
     // ===============================
+    @NotBlank(message = "予定開始時間は必須です", groups = ValidGroup1.class)
     private String plannedWorkStartTimeStr;
+
+    @NotBlank(message = "予定終了時間は必須です", groups = ValidGroup1.class)
     private String plannedWorkEndTimeStr;
     private String plannedBreakStartTimeStr;
     private String plannedBreakEndTimeStr;
 
+    @NotBlank(message = "実績開始時間は必須です", groups = ValidGroup1.class)
     private String actualWorkStartTimeStr;
+
+    @NotBlank(message = "実績終了時間は必須です", groups = ValidGroup1.class)
     private String actualWorkEndTimeStr;
     private String actualBreakStartTimeStr;
     private String actualBreakEndTimeStr;
@@ -49,6 +59,7 @@ public class KintaiDto {
     private BigDecimal deductionTimeDecimal;
 
     private String kintaiStatus;
+    @Length(max = 20, message = "コメントは20文字以内で入力してください", groups = ValidGroup1.class)
     private String kintaiComment;
 
     // ===============================

@@ -7,7 +7,7 @@ import java.time.LocalTime;
 
 import org.hibernate.validator.constraints.Length;
 
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 @Data
@@ -19,18 +19,17 @@ public class KintaiForm {
     private Timestamp updatedAt;
     
     private LocalDate workDate;
-    @NotBlank(groups = ValidGroup1.class )
+    @NotNull(message = "予定開始時間は必須です", groups = ValidGroup1.class)
     private LocalTime plannedWorkStartTime;
-    @NotBlank(groups = ValidGroup1.class )
+    @NotNull(message = "予定終了時間は必須です", groups = ValidGroup1.class)
     private LocalTime plannedWorkEndTime;
-
     private LocalTime plannedBreakStartTime;
    
     private LocalTime plannedBreakEndTime;
     
-    @NotBlank(groups = ValidGroup1.class )
+    @NotNull(message = "実績開始時間は必須です", groups = ValidGroup1.class)
     private LocalTime actualWorkStartTime;
-    @NotBlank(groups = ValidGroup1.class )
+    @NotNull(message = "実績終了時間は必須です", groups = ValidGroup1.class)
     private LocalTime actualWorkEndTime;
     
     private LocalTime actualBreakStartTime;

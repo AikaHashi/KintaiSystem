@@ -16,28 +16,37 @@ const KintaiApp = (function () {
   }
 
   function initCalendar() {
-    const calendarEl = document.getElementById('kintai-calendar');
-    if (!calendarEl) return;
+  const calendarEl = document.getElementById('kintai-calendar');
+  if (!calendarEl) return;
 
-    const calendar = new FullCalendar.Calendar(calendarEl, {
-      initialView: 'dayGridMonth',
-      locale: 'ja',
-      headerToolbar: {
-        left: 'prev,next today',
-        center: 'title',
-        right: 'dayGridMonth'
-      },
-      dateClick: function (info) {
-        loadKintaiTable(info.dateStr);
-      }
-    });
+  const calendar = new FullCalendar.Calendar(calendarEl, {
+    initialView: 'dayGridMonth',
+    locale: 'ja',
+    headerToolbar: {
+      left: 'prev,next today',
+      center: 'title',
+      right: 'dayGridMonth'
+    },
 
-    calendar.render();
+    // ★これがカレンダーにDB反映する本体
+  events: function (fetchInfo, successCallback, failureCallback) {
 
-    const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
-    loadKintaiTable(todayStr);
-  }
+  fetch(`/kintai/events?start=${fetchInfo.startStr}&end=${fetchInfo.endStr}`)
+    .then(res => res.json())
+    .then(data => successCallback(data))
+    .catch(err => failureCallback(err));
+},
+    dateClick: function (info) {
+      loadKintaiTable(info.dateStr);
+    }
+  });
+
+  calendar.render();
+
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
+  loadKintaiTable(todayStr);
+}
 
   function loadKintaiTable(dateStr) {
     const container = document.getElementById('kintai-table-container');
