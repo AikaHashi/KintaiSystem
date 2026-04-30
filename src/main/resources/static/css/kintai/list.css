@@ -5,17 +5,10 @@
     margin-bottom: 1rem;
 }
 
-/* テーブルの列幅 */
+/* テーブルの列幅（←ここ広げる） */
 .th-width {
-    width: 200px;
+    width: 300px; /* ★200→300に変更 */
 }
-
-/* テーブル全体 */
-/*.table-responsive {
-    width: 100%;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch; /* スマホでスムーズスクロール */
-/*}*/
 
 /* ボタンの共通スタイル */
 button {
@@ -31,7 +24,7 @@ button {
         margin-bottom: 8px;
     }
     .table-responsive table {
-        min-width: 600px; /* 横スクロール対応 */
+        min-width: 600px;
     }
 }
 
@@ -43,6 +36,7 @@ button {
     min-width: 1000px;
     width: 100%;
     border-collapse: collapse;
+    table-layout: fixed; /* ★追加（列幅安定） */
 }
 
 .kintai-table th,
@@ -51,11 +45,19 @@ button {
     padding: 8px;
 }
 
+/* 入力系 */
 input, select {
     width: 100%;
     box-sizing: border-box;
 }
 
+/* ★状態プルダウン専用（ここ追加） */
+#kintai-status {
+    width: 100%;
+    min-width: 250px;  /* ★これが効く */
+}
+
+/* 時間入力の並び */
 .time-range {
     display: flex;
     align-items: center;

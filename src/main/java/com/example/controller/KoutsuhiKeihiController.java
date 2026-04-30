@@ -5,12 +5,11 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -28,14 +27,14 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import com.example.domain.kintai.model.Application;
-import com.example.domain.kintai.model.Keihi;
-import com.example.domain.kintai.model.Koutsuhi;
 import com.example.domain.kintai.model.MUser;
 import com.example.domain.kintai.service.ApplicationService;
 import com.example.domain.kintai.service.KeihiService;
 import com.example.domain.kintai.service.KoutsuhiService;
 import com.example.domain.kintai.service.MailService;
 import com.example.domain.kintai.service.UserService;
+import com.example.dto.KeihiDto;
+import com.example.dto.KoutsuhiDto;
 import com.example.form.KeihiForm;
 import com.example.form.KoutsuhiForm;
 import com.example.form.ValidGroup1;
@@ -54,6 +53,7 @@ public class KoutsuhiKeihiController {
     @Autowired private ApplicationService applicationService;
     @Autowired private MailService mailService;
     @Autowired private Validator validator;
+    @Autowired private ModelMapper modelMapper;
     
     private static final ZoneId JST = ZoneId.of("Asia/Tokyo");
 
@@ -101,8 +101,8 @@ public class KoutsuhiKeihiController {
         }
 
         // 遷移時も保存後と同じように、その月のデータを取得
-        List<Koutsuhi> koutsuhiList = koutsuhiService.findByUserIdAndYearMonth(userId, yearMonth);
-        List<Keihi> keihiList = keihiService.findByUserIdAndYearMonth(userId, yearMonth);
+        List<KoutsuhiDto> koutsuhiList = koutsuhiService.findByUserIdAndYearMonth(userId, yearMonth);
+        List<KeihiDto> keihiList = keihiService.findByUserIdAndYearMonth(userId, yearMonth);
 
         System.out.println("koutsuhi size=" + koutsuhiList.size());
         System.out.println("keihi size=" + keihiList.size());
@@ -175,114 +175,28 @@ public class KoutsuhiKeihiController {
             @RequestParam(name="deletedKoutsuhiIds", required=false) String deletedIds,
             @RequestParam(value = "yearMonth", required = false) String yearMonth) {
 
-        Map<String,Object> res = new HashMap<>();
-
-        // ★ 独自バリデーション（その他→特記事項必須）
-        if (form.getKoutsuhi() != null) {
-            for (int i = 0; i < form.getKoutsuhi().size(); i++) {
-                Koutsuhi k = form.getKoutsuhi().get(i);
-
-                if ("その他".equals(k.getMethod())) {
-                    if (k.getNote() == null || k.getNote().isBlank()) {
-                        result.rejectValue(
-                            "koutsuhi[" + i + "].note",
-                            "note.required",
-                            "特記事項は必須です"
-                        );
-                    }
-                }
-            }
-        }
-
-        // ★ 行ごとエラー整形（ソート対応版）
+        // バリデーションエラーはControllerで返す（UI依存）
         if (result.hasErrors()) {
-
-            Map<Integer, List<String>> errorMap = new LinkedHashMap<>();
-
-            for (var e : result.getFieldErrors()) {
-                String field = e.getField(); // koutsuhi[1].departure
-                String msg = e.getDefaultMessage();
-
-                int start = field.indexOf("[");
-                int end = field.indexOf("]");
-
-                int row = -1;
-                if (start != -1 && end != -1) {
-                    row = Integer.parseInt(field.substring(start + 1, end));
-                }
-
-                errorMap
-                    .computeIfAbsent(row, k -> new ArrayList<>())
-                    .add(msg);
-            }
-
-            // ★ 表示用に整形（←ここをソート版に変更）
-            List<String> errors = new ArrayList<>();
-
-            errorMap.entrySet().stream()
-                .filter(e -> e.getKey() >= 0) // 念のため
-                .sorted(Map.Entry.comparingByKey()) // ★これが重要（行順にする）
-                .forEach(entry -> {
-                    int row = entry.getKey();
-                    List<String> msgs = entry.getValue();
-
-                    StringBuilder sb = new StringBuilder();
-                    sb.append((row + 1) + "行目:\n");
-
-                    for (String m : msgs) {
-                        sb.append("・").append(m).append("\n");
-                    }
-
-                    errors.add(sb.toString());
-                });
-
-            res.put("status", "error");
-            res.put("errors", errors);
-            return res;
+            return koutsuhiService.buildErrorResponse(result);
         }
 
         try {
-            if (yearMonth == null || yearMonth.isEmpty()) {
-                yearMonth = LocalDate.now(ZoneId.of("Asia/Tokyo"))
-                        .format(DateTimeFormatter.ofPattern("yyyy-MM"));
-            }
+            Map<String,Object> res =
+                    koutsuhiService.save(form, deletedIds, yearMonth);
 
-            if(deletedIds != null && !deletedIds.isEmpty()) {
-                for(String idStr : deletedIds.split(",")) {
-                    try { 
-                        koutsuhiService.delete(Integer.parseInt(idStr.trim())); 
-                    } catch(NumberFormatException e){ 
-                        System.err.println("Invalid Koutsuhi ID: "+idStr);
-                    }
-                }
-            }
+            return res;
 
-            if(form.getKoutsuhi() != null) {
-                for(Koutsuhi k: form.getKoutsuhi()) {
-
-                    if(k.getDate() == null) continue;
-
-                    k.setUserId(form.getUserId());
-
-                    if(k.getKoutsuhiId() != null && k.getKoutsuhiId() > 0) {
-                        koutsuhiService.update(k);
-                    } else {
-                        koutsuhiService.insertKoutsuhi(k);
-                    }
-                }
-            }
-
-            res.put("koutsuhi", koutsuhiService.findByUserIdAndYearMonth(form.getUserId(), yearMonth));
-            res.put("status", "success");
-
-        } catch(Exception e) {
+        } catch (Exception e) {
             e.printStackTrace();
+
+            Map<String,Object> res = new HashMap<>();
             res.put("status", "error");
             res.put("message", e.getMessage());
+            return res;
         }
-
-        return res;
     }
+
+
     /** ---------------------- 経費保存 ---------------------- */
     @PostMapping("/kintai/keihi/saveKeihi")
     @ResponseBody
@@ -292,145 +206,24 @@ public class KoutsuhiKeihiController {
             @RequestParam(name="deletedKeihiIds", required=false) String deletedIds,
             @RequestParam(value = "yearMonth", required = false) String yearMonth) {
 
-        Map<String,Object> res = new HashMap<>();
-
-        // =========================
-        // yearMonth補正
-        // =========================
-        if (yearMonth == null || yearMonth.isEmpty()) {
-            yearMonth = LocalDate.now(ZoneId.of("Asia/Tokyo"))
-                    .format(DateTimeFormatter.ofPattern("yyyy-MM"));
-        }
-
-        // =====================================================
-        // ★ 追加：method別バリデーション（ここが今回の本体）
-        // =====================================================
-        List<String> methodErrors = new ArrayList<>();
-
-        if (form.getKeihi() != null) {
-            for (int i = 0; i < form.getKeihi().size(); i++) {
-
-                Keihi k = form.getKeihi().get(i);
-
-                if ("その他".equals(k.getMethod())) {
-
-                    if (k.getDate() == null) {
-                        result.rejectValue("keihi[" + i + "].date", "date.required", "日付は必須です");
-                    }
-
-                    if (k.getAmount() == null) {
-                        result.rejectValue("keihi[" + i + "].amount", "amount.required", "金額は必須です");
-                    }
-
-                    if (k.getNote() == null || k.getNote().isBlank()) {
-                        result.rejectValue("keihi[" + i + "].note", "note.required", "特記事項は必須です");
-                    }
-
-                } else {
-
-                    if (k.getDate() == null) {
-                        result.rejectValue("keihi[" + i + "].date", "date.required", "日付は必須です");
-                    }
-
-                    if (k.getDeparture() == null || k.getDeparture().isBlank()) {
-                        result.rejectValue("keihi[" + i + "].departure", "departure.required", "出発地は必須です");
-                    }
-
-                    if (k.getArrival() == null || k.getArrival().isBlank()) {
-                        result.rejectValue("keihi[" + i + "].arrival", "arrival.required", "到着地は必須です");
-                    }
-
-                    if (k.getAmount() == null) {
-                        result.rejectValue("keihi[" + i + "].amount", "amount.required", "金額は必須です");
-                    }
-                }
-            }
-        }
-
-        // =========================
-        // エラー整形
-        // =========================
         if (result.hasErrors()) {
-
-            Map<Integer, List<String>> errorMap = new LinkedHashMap<>();
-
-            for (var e : result.getFieldErrors()) {
-
-                String field = e.getField();
-                String msg = e.getDefaultMessage();
-
-                int row = -1;
-                int start = field.indexOf("[");
-                int end = field.indexOf("]");
-
-                if (start != -1 && end != -1) {
-                    try {
-                        row = Integer.parseInt(field.substring(start + 1, end));
-                    } catch (Exception ignore) {}
-                }
-
-                errorMap.computeIfAbsent(row, k -> new ArrayList<>()).add(msg);
-            }
-
-            List<String> errors = new ArrayList<>();
-
-            errorMap.entrySet().stream()
-                    .sorted(Map.Entry.comparingByKey())
-                    .forEach(entry -> {
-
-                        StringBuilder sb = new StringBuilder();
-                        sb.append((entry.getKey() + 1)).append("行目:\n");
-
-                        for (String m : entry.getValue()) {
-                            sb.append("・").append(m).append("\n");
-                        }
-
-                        errors.add(sb.toString());
-                    });
-
-            res.put("status", "error");
-            res.put("errors", errors);
-            return res;
+            return keihiService.buildErrorResponse(result);
         }
 
-        // =========================
-        // 保存処理
-        // =========================
         try {
+            Map<String,Object> res =
+                    keihiService.save(form, deletedIds, yearMonth);
 
-            if (deletedIds != null && !deletedIds.isEmpty()) {
-                for (String idStr : deletedIds.split(",")) {
-                    try {
-                        keihiService.delete(Integer.parseInt(idStr.trim()));
-                    } catch (Exception ignore) {}
-                }
-            }
-
-            for (Keihi k : form.getKeihi()) {
-
-                if (k.getDate() == null) continue;
-
-                k.setUserId(form.getUserId());
-
-                if (k.getKeihiId() != null && k.getKeihiId() > 0) {
-                    keihiService.update(k);
-                } else {
-                    keihiService.insertKeihi(k);
-                }
-            }
-
-            res.put("keihi",
-                    keihiService.findByUserIdAndYearMonth(form.getUserId(), yearMonth));
-
-            res.put("status", "success");
+            return res;
 
         } catch (Exception e) {
             e.printStackTrace();
+
+            Map<String,Object> res = new HashMap<>();
             res.put("status", "error");
             res.put("message", e.getMessage());
+            return res;
         }
-
-        return res;
     }
     /** ---------------------- 交通費・経費申請共通メソッド ---------------------- */
     private Map<String,Object> applyCommon(String userId, String category, String comment, String yearMonth) {
@@ -703,6 +496,76 @@ public Map<String,Object> applyKeihi(
     return res;
 }
   
+/** ---------------------- 経費 承認 ---------------------- */
+@PostMapping(value="/kintai/keihi/approve/{userId:.+}", produces="application/json")
+@ResponseBody
+public Map<String,Object> approveKeihi(
+        @RequestParam(name="comment", required=false) String comment,
+        @RequestParam(value="yearMonth", required=false) String yearMonth,
+        @PathVariable("userId") String targetUserId) {
+
+    Map<String,Object> res = new HashMap<>();
+    try {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        boolean isAdmin = auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        if (!isAdmin) {
+            res.put("status", "error");
+            res.put("message", "承認権限がありません（管理者のみ）");
+            return res;
+        }
+
+        if (comment == null) comment = "";
+
+        res = approveOrRejectCommon(targetUserId, "経費", comment, "APPROVED", yearMonth);
+
+    } catch(Exception e) {
+        e.printStackTrace();
+        res.put("status", "error");
+        res.put("message", e.getMessage());
+    }
+    return res;
+}
+
+
+/** ---------------------- 経費 差戻し ---------------------- */
+@PostMapping(value="/kintai/keihi/reject/{userId:.+}", produces="application/json")
+@ResponseBody
+public Map<String,Object> rejectKeihi(
+        @RequestParam(name="comment", required=false) String comment,
+        @RequestParam(value="yearMonth", required=false) String yearMonth,
+        @PathVariable("userId") String targetUserId) {
+
+    Map<String,Object> res = new HashMap<>();
+    try {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        boolean isAdmin = auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        if (!isAdmin) {
+            res.put("status", "error");
+            res.put("message", "差戻し権限がありません（管理者のみ）");
+            return res;
+        }
+
+        if (comment == null) comment = "";
+
+        if (yearMonth == null || yearMonth.isEmpty()) {
+            yearMonth = LocalDate.now(ZoneId.of("Asia/Tokyo"))
+                    .format(DateTimeFormatter.ofPattern("yyyy-MM"));
+        }
+
+        res = approveOrRejectCommon(targetUserId, "経費", comment, "REJECTED", yearMonth);
+
+    } catch(Exception e) {
+        e.printStackTrace();
+        res.put("status", "error");
+        res.put("message", e.getMessage());
+    }
+    return res;
+}
+
     /** ---------------------- 例外ハンドリング（JSON強制） ---------------------- */
     @ExceptionHandler(Exception.class)
     @ResponseBody
@@ -740,8 +603,8 @@ public Map<String,Object> applyKeihi(
             String currentUserName = authentication.getName();
             MUser loginUser = userService.getUserOne(currentUserName);
 
-            List<Koutsuhi> koutsuhiList = koutsuhiService.findByUserIdAndYearMonth(userId, yearMonth);
-            List<Keihi> keihiList = keihiService.findByUserIdAndYearMonth(userId, yearMonth);
+            List<KoutsuhiDto> koutsuhiList = koutsuhiService.findByUserIdAndYearMonth(userId, yearMonth);
+            List<KeihiDto> keihiList = keihiService.findByUserIdAndYearMonth(userId, yearMonth);
 
             // ステータス取得（ロールによって参照先を変える）
             String statusKoutsuhi = applicationService.getStatus(

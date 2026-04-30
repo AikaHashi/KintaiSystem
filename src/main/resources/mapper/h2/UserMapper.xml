@@ -2,7 +2,7 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
 <mapper namespace="com.example.repository.UserMapper">
-	
+
 	<!-- マッピング定義（ユーザー） -->
 	<resultMap type="com.example.domain.kintai.model.MUser" id="user">
 		<id column="user_id" property="userId" />
@@ -11,25 +11,28 @@
 		<result column="birthday" property="birthday" />
 		<result column="gender" property="gender" />
 		<result column="role" property="role" />
+		
+		<!-- salaryList 削除 -->
 	</resultMap>
-
 
 	<!-- ユーザー１件登録 -->
 	<insert id="insertOne">
 		insert into m_user(
-		user_id, password, user_name, birthday, gender, role
+		user_id, password, user_name, birthday,gender, role
 		)
 		values(
 		#{userId}, #{password}, #{userName}, #{birthday}, #{gender},
-		#{departmentId}, #{role}
+	 #{role}
 		)
 	</insert>
 
 	<!-- ユーザー複数件取得 -->
 	<select id="findMany" resultMap="user"> select m_user.user_id,
 		m_user.password, m_user.user_name, m_user.birthday,
-		m_user.gender, m_user.role from m_user
-		<where>
+		m_user.gender, m_user.department_id, m_user.role,
+		m_department.department_id, m_department.department_name from m_user
+		left join m_department on m_user.department_id =
+		m_department.department_id <where>
 			<if test="userId != null">
 				m_user.user_id like '%' || #{userId} || '%'
 			</if>
@@ -47,8 +50,12 @@
 		m_user.user_name,
 		m_user.birthday,
 		m_user.gender,
-		 m_user.role
+		 m_user.role,
+		m_department.department_id,
+		m_department.department_name
 		from m_user
+		left join m_department on m_user.department_id =
+		m_department.department_id
 		where m_user.user_id = #{userId}
 	</select>
 
@@ -72,8 +79,13 @@
 		m_user.user_name,
 		m_user.birthday,
 		m_user.gender,
-		m_user.role
+		m_user.department_id,
+		m_user.role,
+		m_department.department_id,
+		m_department.department_name
 		from m_user
+		left join m_department on m_user.department_id =
+		m_department.department_id
 		where m_user.user_id = #{userId}
 	</select>
 

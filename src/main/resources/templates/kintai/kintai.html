@@ -3,15 +3,12 @@
       xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
       layout:decorate="~{layout/layout}">
 <head>
-	<meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title>勤怠</title>
 
     <!-- 個別CSS -->
     <link rel="stylesheet" th:href="@{/css/kintai/list.css}"> 
-    
-    <!-- FullCalendar CSS -->
-	<!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css">	-->
-    
+
     <!-- DataTables CSS -->
     <link rel="stylesheet" th:href="@{/webjars/datatables/css/jquery.dataTables.min.css}">
 
@@ -23,49 +20,97 @@
 
     <!-- 勤怠JS -->
     <script th:src="@{/js/kintai/kintai.js}" defer></script>
-	
-	<script th:inline="javascript">	
-		const 	sessionUserName = /*[[${sessionUserName}]]*/ 	'defaultUser';
-		const 	sessionUserId = /*[[${sessionUserId}]]*/ 	'defaultUser';
-		
-			
-		 </script>
+
+    <!-- セッション情報 -->
+    <script th:inline="javascript">    
+        const sessionUserName = /*[[${sessionUserName}]]*/ 'defaultUser';
+        const sessionUserId   = /*[[${sessionUserId}]]*/ 'defaultUser';
+    </script>
 </head>
 
-<!-- 🔽 ログインユーザー名をdata属性に埋め込む -->
-<body th:attr="data-username=${sessionUserName}">
+<body th:attr="data-username=${sessionUserName}, data-userid=${sessionUserId}">
+
 <div layout:fragment="content">
+
     <div class="header border-bottom mb-4">
         <h1 class="h2">勤怠</h1>
     </div>
-<!--	<p>現在のrole: <span th:text="${role}">未設定</span></p>-->
-<!--	 申請フロー -->
-<!--	<div id="applicationContainer" class="mt-4">-->
-<!--	    <h2>申請フロー</h2>-->
-	  
-	
-<!--	     一般ユーザー -->
-<!--		<div th:if="${role == 'ROLE_GENERAL'}">-->
-<!--		    <form th:action="@{/kintai/apply}" method="post">-->
-<!--		        <button type="submit">申請</button>-->
-<!--		    </form>-->
-<!--		</div>-->
-	
-<!--	     管理者 -->
-<!--		<div th:if="${role == 'ROLE_ADMIN'}">-->
-<!--		    <form th:action="@{/kintai/approve}" method="post">-->
-<!--		        <button type="submit">承認</button>-->
-<!--		    </form>-->
-<!--		    <form th:action="@{/kintai/reject}" method="post">-->
-<!--		        <button type="submit">差戻</button>-->
-<!--		    </form>-->
-<!--		</div>-->
-<!--	</div>-->
-	
-	<div id="kintai-table-container" class="mt-4"></div>
+
+    <!-- ✅ 勤怠テーブル（最初からHTMLで持つ） -->
+    <div id="kintai-table-container" class="mt-4">
+        <form id="kintai-form">
+            <h3 id="work-date"></h3>
+            <button type="button" id="btn-save">保存</button>
+
+            <table border="1" style="width: 100%;">
+                <thead>
+                    <tr>
+                        <th></th><th colspan="2">予定</th><th colspan="8">実績</th>
+                    </tr>
+                    <tr>
+                        <th>社員名</th><th>勤務時間</th><th>休憩時間</th>
+                        <th>勤務時間</th><th>休憩時間</th>
+                        <th>所定時間</th><th>実働時間</th>
+                        <th>時間外</th><th>控除</th><th>状態</th><th>特記事項</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span id="userName"></span></td>
+
+                        <td>
+                            <input type="time" name="plannedWorkStartTime">
+                            ～<input type="time" name="plannedWorkEndTime">
+                        </td>
+
+                        <td>
+                            <input type="time" name="plannedBreakStartTime">
+                            ～<input type="time" name="plannedBreakEndTime">
+                        </td>
+
+                        <td>
+                            <input type="time" name="actualWorkStartTime">
+                            ～<input type="time" name="actualWorkEndTime">
+                        </td>
+
+                        <td>
+                            <input type="time" name="actualBreakStartTime">
+                            ～<input type="time" name="actualBreakEndTime">
+                        </td>
+
+                        <td><input type="text" name="scheduledWorkHours" readonly></td>
+                        <td><input type="text" name="actualWorkHours" readonly></td>
+                        <td><input type="text" name="overtimeHours" readonly></td>
+                        <td><input type="text" name="deductionTime" readonly></td>
+
+                        <td>
+                            <select name="kintaiStatus" id="kintai-status">
+                                <option value="nothing">なし</option>
+                                <option value="paid_leave_full">有給休暇(全休)</option>
+                                <option value="paid_leave_half">有給休暇(半休)</option>
+                                <option value="substitute_leave">振替休暇</option>
+                                <option value="compensatory_leave">代休</option>
+                                <option value="work_related_illness">業務上の疾病による休業</option>
+                                <option value="maternity_leave">産前産後休業</option>
+                                <option value="childcare_leave">育児休業</option>
+                                <option value="other_leave">その他休業</option>
+                            </select>
+                        </td>
+
+                        <td><input type="text" name="kintaiComment"></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <input type="hidden" name="userId" id="formUserId">
+            <input type="hidden" name="userName" id="formUserName">
+            <input type="hidden" name="workDate" id="formWorkDate">
+        </form>
+    </div>
 
     <!-- カレンダー -->
     <div id="kintai-calendar" class="mb-4"></div>
+
 </div>
 
 <p>現在のrole: <span th:text="${role}">未設定</span></p>

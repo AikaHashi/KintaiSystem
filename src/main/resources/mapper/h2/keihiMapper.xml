@@ -5,31 +5,31 @@
 
 	<!-- 登録 -->
 	<insert id="insertKeihi"
-        parameterType="com.example.domain.kintai.model.Keihi"
-        useGeneratedKeys="true" keyProperty="keihiId">
-        INSERT INTO t_keihi (
-            user_id, date, method, departure, arrival, via, amount, note
-        ) VALUES (
-            #{userId}, #{date}, #{method}, #{departure}, #{arrival}, #{via},
-            #{amount}, #{note}
-        )
-    </insert>
+		parameterType="com.example.dto.KeihiDto"
+		useGeneratedKeys="true" keyProperty="keihiId">
+		INSERT INTO t_keihi (
+		user_id, date, method, departure, arrival, via, amount, note
+		) VALUES (
+		#{userId}, #{date}, #{method}, #{departure}, #{arrival}, #{via},
+		#{amount}, #{note}
+		)
+	</insert>
 
 	<!-- 一覧取得（userId指定） -->
-	<select id="findByUserId" resultType="com.example.domain.kintai.model.Keihi">
+	<select id="findByUserId" resultType="com.example.dto.KeihiDto">
 		SELECT * FROM t_keihi
 		WHERE user_id = #{userId}
 		ORDER BY date DESC
 	</select>
 
 	<!-- 単体取得 -->
-	<select id="findById" resultType="com.example.domain.kintai.model.Keihi">
+	<select id="findById" resultType="com.example.dto.KeihiDto">
 		SELECT * FROM t_keihi
 		WHERE keihi_id = #{keihiId}
 	</select>
 
 	<!-- 更新 -->
-	<update id="updateOne" parameterType="com.example.domain.kintai.model.Keihi">
+	<update id="updateOne" parameterType="com.example.dto.KeihiDto">
 		UPDATE t_keihi SET
 		user_id = #{userId},
 		date = #{date},
@@ -48,13 +48,12 @@
 		WHERE keihi_id = #{keihiId}
 	</delete>
 
-	<!-- 年月で絞り込み -->
 	<select id="findByUserIdAndYearMonth"
-        resultType="com.example.domain.kintai.model.Keihi">
-	    SELECT * FROM t_keihi
-	    WHERE user_id = #{userId}
-	      AND DATE_FORMAT(date, '%Y-%m') = #{yearMonth}
-	    ORDER BY date DESC
-	</select>
+		resultType="com.example.dto.KeihiDto">
+		SELECT * FROM t_keihi
+		WHERE user_id = #{userId}
+		AND date LIKE CONCAT(#{yearMonth}, '%')
+		ORDER BY date DESC
+</select>
 
 </mapper>

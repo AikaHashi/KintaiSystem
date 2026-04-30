@@ -2,7 +2,7 @@ package com.example.form;
 
 import java.util.List;
 
-import com.example.domain.kintai.model.Koutsuhi;
+import com.example.dto.KoutsuhiDto;
 
 import jakarta.validation.Valid;
 import lombok.Data;
@@ -11,5 +11,5 @@ import lombok.Data;
 public class KoutsuhiForm {
     private String userId;
     @Valid
-    private List<Koutsuhi> koutsuhi;
+    private List<KoutsuhiDto> koutsuhi;
 }

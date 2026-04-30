@@ -32,9 +32,9 @@
 				<button class="btn btn-primary" type="submit">
 					検索
 				</button>
-				<button id="btn-search" class="btn btn-primary ml-3" type="button">
-					検索(REST)
-				</button>
+<!--				<button id="btn-search" class="btn btn-primary ml-3" type="button">-->
+<!--					検索(REST)-->
+<!--				</button>-->
 			</form>
 		</div>
 		<!-- 一覧表示 -->
@@ -45,7 +45,6 @@
 						<th class="th-width">ユーザーID</th>
 						<th class="th-width">ユーザー名</th>
 						<th class="th-width">誕生日</th>
-						<th class="th-width">年齢</th>
 						<th class="th-width">性別</th>
 						<th class="th-width"></th>
 						<th class="th-width"></th>
@@ -57,7 +56,6 @@
 						<td th:text="${item.userId}"></td>
 						<td th:text="${item.userName}"></td>
 						<td th:text="${item.formattedBirthday}"></td> <!-- 変更 -->
-						<td th:text="${item.age}"></td>
 						<td th:text="${item.gender == 1 ? '男性' : '女性'}"></td>
 						<td>
 							<a th:href="@{'/kintai/userDetail/' + ${item.userId}}">詳細</a>
@@ -84,7 +82,6 @@
 						<th class="th-width">ユーザーID</th>
 						<th class="th-width">ユーザー名</th>
 						<th class="th-width">誕生日</th>
-						<th class="th-width">年齢</th>
 						<th class="th-width">性別</th>
 						<th class="th-width"></th>
 					</tr>

@@ -74,13 +74,13 @@ public class KintaiController {
         String ym = today.getYear() + "-" + String.format("%02d", today.getMonthValue());
 
         // ステータスを取得
-        String kintaiStatus = applicationService.getStatus(user.getUserId(), "KINTAI", ym);
-        String keihiStatus = applicationService.getStatus(user.getUserId(), "KEIHI", ym);
-        String koutsuhiStatus = applicationService.getStatus(user.getUserId(), "KOUTSUHI", ym);
-
-        model.addAttribute("kintaiStatus", kintaiStatus);
-        model.addAttribute("keihiStatus", keihiStatus);
-        model.addAttribute("koutsuhiStatus", koutsuhiStatus);
+//        String kintaiStatus = applicationService.getStatus(user.getUserId(), "KINTAI", ym);
+//        String keihiStatus = applicationService.getStatus(user.getUserId(), "KEIHI", ym);
+//        String koutsuhiStatus = applicationService.getStatus(user.getUserId(), "KOUTSUHI", ym);
+//
+//        model.addAttribute("kintaiStatus", kintaiStatus);
+//        model.addAttribute("keihiStatus", keihiStatus);
+//        model.addAttribute("koutsuhiStatus", koutsuhiStatus);
 
         // セッション情報などは今のまま
         model.addAttribute("session", Map.of("role", "ROLE_GENERAL"));

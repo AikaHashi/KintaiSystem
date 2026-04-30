@@ -19,4 +19,10 @@ public interface KintaiService {
     int delete(String userId, LocalDate workDate);
 
     Kintai selectOneByUserIdAndDate(String userId, LocalDate workDate);
+    
+    List<Kintai> findByUserAndMonth(String userId, int year, int month);
+    
+    void calculate(Kintai kintai);
+    
 }
+

@@ -1,22 +1,17 @@
 package com.example.controller;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.annotation.*;
 
 import com.example.domain.kintai.model.MUser;
 import com.example.domain.kintai.service.UserService;
 import com.example.form.UserDetailForm;
 
+import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 
 @Controller
@@ -30,79 +25,62 @@ public class UserDetailController {
     @Autowired
     private ModelMapper modelMapper;
 
-    /** ユーザー詳細画面を表示 */
+    /** ユーザー詳細画面表示 */
     @GetMapping("/userDetail/{userId:.+}")
-    public String getUser(UserDetailForm form, Model model, @PathVariable("userId") String userId) {
+    public String getUser(UserDetailForm form, Model model,
+                          @PathVariable("userId") String userId) {
 
-        // ユーザーを1件取得
-//        MUser user = userService.getUserOne(userId);
-//        user.setPassword(null);
-        
-        // 表示対象のユーザー情報を取得（ここがポイント）
-        MUser targetUserName = userService.getUserOne(userId);
-        if (targetUserName != null) {
-            model.addAttribute("targetUserName", targetUserName.getUserName());
-            modelMapper.map(targetUserName, form);
+        // ユーザー取得
+        MUser user = userService.getUserOne(userId);
+
+        if (user != null) {
+            modelMapper.map(user, form);
+            model.addAttribute("targetUserName", user.getUserName());
         } else {
             model.addAttribute("targetUserName", "不明なユーザー");
         }
 
-        // MUserをformに変換
-       // form = modelMapper.map(targetUserName, UserDetailForm.class);
-       
-
-         // ← これに変更
-        // Modelに登録
         model.addAttribute("userDetailForm", form);
 
-        // ユーザー詳細画面を表示
         return "kintai/userDetail";
     }
-    
-    
-//    @GetMapping("/userDetail")
-//    public String getUserDetail(@PathVariable("userId") String userId,UserDetailForm form, Model model) {
-////    	
-////    	 // ユーザーを1件取得
-//        MUser user = userService.getUserOne(userId);
-//       
-////        user.setPassword(null);
-////
-////        // MUserをformに変換
-//        form = modelMapper.map(user, UserDetailForm.class);
-////        form.setSalaryList(user.getSalaryList());
-//        // Modelに登録
-//        model.addAttribute("userDetailForm", form);
-//
-//    	 MUser targetUserName = userService.getUserOne(userId);
-//         if (targetUserName != null) {
-//             model.addAttribute("targetUserName", targetUserName.getUserName());
-//         } else {
-//             model.addAttribute("targetUserName", "不明なユーザー");
-//         }
-//    	
-//        return "kintai/userDetail"; // など適当な画面にリダイレクト
-//    }
-//
-//    /** ユーザー更新処理 */
+
+    /** ユーザー更新処理（バリデーション対応・画面遷移） */
     @PostMapping(value = "/userDetail", params = "update")
-    @ResponseBody
-    public Map<String, String> updateUser(UserDetailForm form) {
-        Map<String, String> result = new HashMap<>();
+    public String updateUser(
+            @Valid @ModelAttribute UserDetailForm form,
+            BindingResult bindingResult,
+            Model model) {
+
+        // バリデーションエラー
+        if (bindingResult.hasErrors()) {
+            model.addAttribute("targetUserName", form.getUserName());
+            return "kintai/userDetail";
+        }
+
         try {
-            userService.updateUserOne(form.getUserId(), form.getPassword(), form.getUserName());
-            result.put("result", "success");
+            userService.updateUserOne(
+                    form.getUserId(),
+                    form.getPassword(),
+                    form.getUserName()
+            );
         } catch (Exception e) {
             log.error("ユーザー更新でエラー", e);
-            result.put("result", "error");
+            model.addAttribute("targetUserName", form.getUserName());
+            model.addAttribute("errorMessage", "更新に失敗しました");
+            return "kintai/userDetail";
         }
-        return result;
+
+        // 一覧へリダイレクト
+        return "redirect:/kintai/userList";
     }
 
     /** ユーザー削除処理 */
     @PostMapping(value = "/userDetail", params = "delete")
-    public String deleteUser(UserDetailForm form, Model model) {
+    public String deleteUser(UserDetailForm form) {
+
         userService.deleteUserOne(form.getUserId());
+
         return "redirect:/kintai/userList";
     }
 }
