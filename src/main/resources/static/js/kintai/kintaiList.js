@@ -3,6 +3,10 @@
 //const currentEmployee = '田中太郎';
 //const targetUserName = document.getElementById('userSelect').value;
 
+//const table = document.createElement('table');
+//table.id = 'kintaiTable';
+//table.classList.add('kintai-table'); // ★これ追加
+
 // ▼ 現在表示中の年月
 let currentDate = new Date();
 
@@ -22,6 +26,15 @@ function timeStrToMinutes(timeStr) {
 function minutesToTimeStr(minutes) {
 	const h = Math.floor(minutes / 60);
 	const m = minutes % 60;
+	return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+}
+
+// 🔥 ★追加：Decimal → "HH:MM"
+function decimalToTimeStr(decimal) {
+	if (!decimal && decimal !== 0) return "00:00"; // null, undefined, '' 対策
+	const totalMin = Math.round(Number(decimal) * 60);
+	const h = Math.floor(totalMin / 60);
+	const m = totalMin % 60;
 	return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
 }
 
@@ -51,26 +64,25 @@ function generateDummyData(year, month) {
 		const dateStr = date.toISOString().split('T')[0];
 		const dto = kintaiMap[dateStr] || {};
 
-		const plannedWorkMin = (dto.plannedWorkStartTime && dto.plannedWorkEndTime)
-			? timeStrToMinutes(dto.plannedWorkEndTime) - timeStrToMinutes(dto.plannedWorkStartTime)
+		const plannedWorkMin = (dto.plannedWorkStartTimeStr && dto.plannedWorkEndTimeStr)
+			? timeStrToMinutes(dto.plannedWorkEndTimeStr) - timeStrToMinutes(dto.plannedWorkStartTimeStr)
 			: 0;
 
-		const plannedBreakMin = (dto.plannedBreakStartTime && dto.plannedBreakEndTime)
-			? timeStrToMinutes(dto.plannedBreakEndTime) - timeStrToMinutes(dto.plannedBreakStartTime)
+		const plannedBreakMin = (dto.plannedBreakStartTimeStr && dto.plannedBreakEndTimeStr)
+			? timeStrToMinutes(dto.plannedBreakEndTimeStr) - timeStrToMinutes(dto.plannedBreakStartTimeStr)
 			: 0;
 
 		let scheduledMin = plannedWorkMin - plannedBreakMin;
 
-		const actualWorkMin = (dto.actualWorkStartTime && dto.actualWorkEndTime)
-			? timeStrToMinutes(dto.actualWorkEndTime) - timeStrToMinutes(dto.actualWorkStartTime)
+		const actualWorkMin = (dto.actualWorkStartTimeStr && dto.actualWorkEndTimeStr)
+			? timeStrToMinutes(dto.actualWorkEndTimeStr) - timeStrToMinutes(dto.actualWorkStartTimeStr)
 			: 0;
 
-		const actualBreakMin = (dto.actualBreakStartTime && dto.actualBreakEndTime)
-			? timeStrToMinutes(dto.actualBreakEndTime) - timeStrToMinutes(dto.actualBreakStartTime)
+		const actualBreakMin = (dto.actualBreakStartTimeStr && dto.actualBreakEndTimeStr)
+			? timeStrToMinutes(dto.actualBreakEndTimeStr) - timeStrToMinutes(dto.actualBreakStartTimeStr)
 			: 0;
 
 		const actualMin = actualWorkMin - actualBreakMin;
-
 		// ステータス別調整
 		let adjustedActualMin = actualMin;
 		let adjustedBreakMin = actualBreakMin;
@@ -106,22 +118,26 @@ function generateDummyData(year, month) {
 			date: dateStr,
 			userName: dto.userName || targetUserName,
 			updatedBy: dto.updatedBy || '',
+
 			plannedWorkStartTime: dto.plannedWorkStartTime || '',
 			plannedWorkEndTime: dto.plannedWorkEndTime || '',
 			plannedBreakStartTime: dto.plannedBreakStartTime || '',
 			plannedBreakEndTime: dto.plannedBreakEndTime || '',
+
 			actualWorkStartTime: dto.actualWorkStartTime || '',
 			actualWorkEndTime: dto.actualWorkEndTime || '',
 			actualBreakStartTime: dto.actualBreakStartTime || '',
 			actualBreakEndTime: dto.actualBreakEndTime || '',
-			scheduledWorkHours: minutesToTimeStr(scheduledMin),
-			actualWorkHours: minutesToTimeStr(adjustedActualMin),
-			overtimeHours: minutesToTimeStr(adjustedOvertimeMin),
-			deductionTime: minutesToTimeStr(deductionMin),
+
+			// 🔥 ここが本命（DBのDecimalを使う）
+			scheduledWorkHours: decimalToTimeStr(dto.scheduledWorkHours),
+			actualWorkHours: decimalToTimeStr(dto.actualWorkHours),
+			overtimeHours: decimalToTimeStr(dto.overtimeHours),
+			deductionTime: decimalToTimeStr(dto.deductionTime),
+
 			kintaiStatus: dto.kintaiStatus || 'nothing',
 			kintaiComment: dto.kintaiComment || ''
 		};
-
 		data.push(entry);
 
 		// 🔥 ここ追加（休暇カウント）
@@ -204,63 +220,58 @@ function generateDummyData(year, month) {
 }
 // ▼ 勤怠テーブルの生成
 function createTable(data) {
-	// 古いテーブルを削除
-	const existingTable = document.getElementById('kintaiTable');
-	if (existingTable) {
-		existingTable.remove();
+
+	const tbody = document.getElementById('kintaiTbody');
+	tbody.innerHTML = '';
+
+	// 既存テーブル取得（ここが正しい）
+	let table = document.getElementById('kintaiTable');
+
+	// 念のためなければ作る（保険）
+	if (!table) {
+		table = document.createElement('table');
+		table.id = 'kintaiTable';
+		table.classList.add('kintai-table');
+		document.getElementById('tableContainer').appendChild(table);
 	}
-
-	const table = document.createElement('table');
-	table.id = 'kintaiTable';
-	const thead = document.createElement('thead');
-	const tbody = document.createElement('tbody');
-
-	thead.innerHTML = `
-    <tr>
-      <th rowspan="2">日付</th>
-      <th rowspan="2">社員名</th>
-      <th rowspan="2">更新者</th>
-      <th colspan="2">予定</th>
-      <th colspan="8">実績</th>
-    </tr>
-    <tr>
-      <th>勤務時間</th><th>休憩時間</th>
-      <th>勤務時間</th><th>休憩時間</th>
-      <th>所定時間</th><th>実働時間</th>
-      <th>時間外</th><th>控除</th><th>状態</th><th>特記事項</th>
-    </tr>
-  `;
 
 	data.forEach(entry => {
 		const tr = document.createElement('tr');
+
 		tr.innerHTML = `
       <td>${entry.date}</td>
       <td>${entry.userName}</td>
       <td>${entry.updatedBy}</td>
+
       <td>
         <input type="time" name="plannedWorkStartTime" value="${entry.plannedWorkStartTime}" disabled/>
-         ～ 
+        ～ 
         <input type="time" name="plannedWorkEndTime" value="${entry.plannedWorkEndTime}" disabled/>
       </td>
+
       <td>
         <input type="time" name="plannedBreakStartTime" value="${entry.plannedBreakStartTime}" disabled/>
-         ～ 
+        ～ 
         <input type="time" name="plannedBreakEndTime" value="${entry.plannedBreakEndTime}" disabled/>
       </td>
+
       <td>
         <input type="time" name="actualWorkStartTime" value="${entry.actualWorkStartTime}" disabled/>
-         ～ 
+        ～ 
         <input type="time" name="actualWorkEndTime" value="${entry.actualWorkEndTime}" disabled/>
       </td>
+
       <td>
         <input type="time" name="actualBreakStartTime" value="${entry.actualBreakStartTime}" disabled/>
-         ～ 
+        ～ 
         <input type="time" name="actualBreakEndTime" value="${entry.actualBreakEndTime}" disabled/>
       </td>
+
       <td><input type="text" name="scheduledWorkHours" value="${entry.scheduledWorkHours}" readonly disabled/></td>
       <td><input type="text" name="actualWorkHours" value="${entry.actualWorkHours}" readonly disabled/></td>
       <td><input type="text" name="overtimeHours" value="${entry.overtimeHours}" readonly disabled/></td>
       <td><input type="text" name="deductionTime" value="${entry.deductionTime}" readonly disabled/></td>
+
       <td>
         <select name="kintaiStatus" disabled>
           <option value="nothing" ${entry.kintaiStatus === 'nothing' ? 'selected' : ''}>なし</option>
@@ -274,17 +285,15 @@ function createTable(data) {
           <option value="other_leave" ${entry.kintaiStatus === 'other_leave' ? 'selected' : ''}>その他休業</option>
         </select>
       </td>
-      <td><input type="text" name="kintaiComment" value="${entry.kintaiComment}" disabled/></td>
+
+      <td>
+        <input type="text" name="kintaiComment" value="${entry.kintaiComment}" disabled/>
+      </td>
     `;
+
 		tbody.appendChild(tr);
 	});
-
-	// ループ外で append
-	table.appendChild(thead);
-	table.appendChild(tbody);
-	document.getElementById('tableContainer').appendChild(table);
 }
-
 // ボタン要素
 const editBtn = document.getElementById('editBtn');
 const saveBtn = document.getElementById('saveBtn');
@@ -472,6 +481,7 @@ function saveKintaiData() {
 		const inputs = row.querySelectorAll('input, select');
 		if (inputs.length < 14) return;
 
+		// --- 記入行のみ ---
 		const timeAndCommentInputs = Array.from(inputs).slice(0, 12);
 		const commentInput = inputs[13];
 		const anyFilled = timeAndCommentInputs.some(input => {
@@ -480,6 +490,7 @@ function saveKintaiData() {
 		}) || (commentInput && commentInput.value && commentInput.value.trim() !== '');
 		if (!anyFilled) return;
 
+		// --- 時間計算 ---
 		const plannedWorkMin = (inputs[1].value && inputs[0].value)
 			? timeStrToMinutes(inputs[1].value) - timeStrToMinutes(inputs[0].value)
 			: 0;
@@ -501,14 +512,12 @@ function saveKintaiData() {
 		let actualMin = actualWorkMin - actualBreakMin;
 
 		let adjustedActualMin = actualMin;
-		let adjustedBreakMin = actualBreakMin;
 		let adjustedOvertimeMin = Math.max(0, actualMin - scheduledMin);
 		let deductionMin = Math.max(0, scheduledMin - adjustedActualMin);
 
 		switch (inputs[12].value) {
 			case 'paid_leave_half':
 				adjustedActualMin = actualMin / 2;
-				adjustedBreakMin = 0;
 				adjustedOvertimeMin = 0;
 				deductionMin = scheduledMin - adjustedActualMin;
 				counts.paidLeave += 0.5;
@@ -523,7 +532,6 @@ function saveKintaiData() {
 			case 'childcare_leave':
 			case 'other_leave':
 				adjustedActualMin = 0;
-				adjustedBreakMin = 0;
 				adjustedOvertimeMin = 0;
 				deductionMin = 0;
 				const leaveKey = inputs[12].value.replace(/_leave$/, '');
@@ -536,22 +544,23 @@ function saveKintaiData() {
 				break;
 		}
 
+		// ✅ ここが最重要：Decimalで送る
 		const entry = {
 			userId: userId,
 			workDate: cells[0].textContent.trim(),
 			userName: cells[1].textContent.trim(),
 
-			plannedWorkStartTimeStr: inputs[0].value,
-			plannedWorkEndTimeStr: inputs[1].value,
-			plannedBreakStartTimeStr: inputs[2].value,
-			plannedBreakEndTimeStr: inputs[3].value,
+			plannedWorkStartTime: inputs[0].value,
+			plannedWorkEndTime: inputs[1].value,
+			plannedBreakStartTime: inputs[2].value,
+			plannedBreakEndTime: inputs[3].value,
 
-			actualWorkStartTimeStr: inputs[4].value,
-			actualWorkEndTimeStr: inputs[5].value,
-			actualBreakStartTimeStr: inputs[6].value,
-			actualBreakEndTimeStr: inputs[7].value,
+			actualWorkStartTime: inputs[4].value,
+			actualWorkEndTime: inputs[5].value,
+			actualBreakStartTime: inputs[6].value,
+			actualBreakEndTime: inputs[7].value,
 
-			// ★ここ修正（文字列 → 数値）
+			// 🔥 ここ変更
 			scheduledWorkHours: minutesToDecimalHours(scheduledMin),
 			actualWorkHours: minutesToDecimalHours(adjustedActualMin),
 			overtimeHours: minutesToDecimalHours(adjustedOvertimeMin),
@@ -570,7 +579,6 @@ function saveKintaiData() {
 		counts.childcareLeave + counts.otherLeave;
 
 	if (!newKintaiList || newKintaiList.length === 0) {
-		console.log("newKintaiList:", newKintaiList);
 		alert('変更された行がありません');
 		return;
 	}
@@ -595,28 +603,15 @@ function saveKintaiData() {
 				return;
 			}
 
-			const savedList = Array.isArray(json.data) ? json.data : [];
-
-			savedList.forEach(dto => {
-				dto.updatedBy = sessionUserName || targetUserName;
-				const idx = kintaiListJson.findIndex(k => k.workDate === dto.workDate);
-				if (idx !== -1) kintaiListJson[idx] = dto;
-				else kintaiListJson.push(dto);
-			});
-
 			alert('保存成功！');
 
-			const year = currentDate.getFullYear();
-			const month = currentDate.getMonth();
-			const newData = generateDummyData(year, month);
-			createTable(newData);
+			refreshTable();
 			setTimeout(setOriginalValues, 100);
 
 			editBtn.style.display = 'inline';
 			saveBtn.style.display = 'none';
 			cancelBtn.style.display = 'none';
 
-			kintaiListJson = newKintaiList;
 			document.querySelectorAll('input, select').forEach(el => el.disabled = true);
 			isEditing = false;
 		})
@@ -697,7 +692,9 @@ function updateApplicationButtons(status) {
 }
 // ▼ ステータス取得 & ボタン更新
 function fetchStatusAndUpdate() {
-	const yearMonth = currentDate.toISOString().slice(0, 7); // yyyy-MM
+	const yearMonth =
+		currentDate.getFullYear() + "-" +
+		String(currentDate.getMonth() + 1).padStart(2, "0");
 	fetch(`/kintai/status?userId=${targetUserId}&yearMonth=${yearMonth}`)
 		.then(res => res.json())
 		.then(data => {
@@ -715,7 +712,6 @@ function fetchStatusAndUpdate() {
 		.catch(e => console.error("status取得エラー:", e));
 }
 
-// ▼ 申請・承認フロー共通処理
 // ▼ 申請・承認フロー共通処理
 function handleAction(buttonId, formId, commentInputId, confirmMsg) {
 	const btn = document.getElementById(buttonId);
@@ -773,7 +769,7 @@ function handleAction(buttonId, formId, commentInputId, confirmMsg) {
 }
 
 
-// ★完全に外に置く（ここ重要）
+
 function isChanged() {
 	const trList = document.querySelectorAll('#kintaiTable tbody tr');
 

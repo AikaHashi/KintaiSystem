@@ -1,65 +1,114 @@
-/* ヘッダー調整 */
+/* ===== 共通テーブル ===== */
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th,
+td {
+    padding: 8px;
+    border: 1px solid #ccc;
+    text-align: center;
+    vertical-align: middle;
+}
+
+th {
+    background-color: #f2f2f2;
+}
+
+/* 入力系 */
+input[readonly],
+input:disabled {
+    background-color: #f9f9f9;
+}
+
+input {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* ===== レイアウト ===== */
+
 .page-header {
     padding-top: 1rem;
     padding-bottom: 0.5rem;
     margin-bottom: 1rem;
 }
 
-/* テーブルの列幅（←ここ広げる） */
-.th-width {
-    width: 300px; /* ★200→300に変更 */
-}
-
-/* ボタンの共通スタイル */
 button {
     padding: 0.5rem 1rem;
     font-size: 1rem;
 }
 
-/* メディアクエリ：600px 以下のスマホ対応 */
-@media (max-width: 600px) {
-    button {
-        display: block;
-        width: 100%;
-        margin-bottom: 8px;
-    }
-    .table-responsive table {
-        min-width: 600px;
-    }
+/* =====================================================
+   ★ 横スクロールを「どこでも出る」にする修正版
+   ===================================================== */
+
+/* ★重要：ここがスクロールの本体 */
+.table-wrapper {
+    width: 100%;
+    max-width: 100%;
+
+    height: 65vh;        /* ★ここがミソ（中間スクロール化） */
+    overflow: auto;      /* 縦＋横どっちもここで発生 */
+
+    display: block;
+
+    border: 1px solid #ddd; /* 見やすくするため任意 */
+}
+✔️ポイント（
+
+/* 横崩れ防止 */
+body {
+    overflow-x: hidden;
 }
 
-.table-wrapper {
-    overflow-x: auto;
-}
+/* ===== 勤怠テーブル ===== */
 
 .kintai-table {
-    min-width: 1000px;
-    width: 100%;
+    width: max-content;
+    min-width: 100%;
     border-collapse: collapse;
-    table-layout: fixed; /* ★追加（列幅安定） */
+    table-layout: auto;
 }
 
+/* 基本セル */
 .kintai-table th,
 .kintai-table td {
+    font-size: 12px;
     white-space: nowrap;
-    padding: 8px;
 }
 
-/* 入力系 */
-input, select {
-    width: 100%;
+/* input・select */
+.kintai-table input,
+.kintai-table select {
+    font-size: 12px;
     box-sizing: border-box;
 }
 
-/* ★状態プルダウン専用（ここ追加） */
-#kintai-status {
-    width: 100%;
-    min-width: 250px;  /* ★これが効く */
+/* ===== 時間入力 ===== */
+.kintai-table td input[type="time"] {
+    width: 110px;
+    min-width: 110px;
 }
 
-/* 時間入力の並び */
+/* 横並び */
 .time-range {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
+    flex-wrap: nowrap;
+}
+
+/* 状態 */
+.kintai-table td:nth-child(13),
+.kintai-table th:nth-child(13) {
+    width: 100px;
+}
+
+/* 特記事項 */
+.kintai-table td:last-child,
+.kintai-table th:last-child {
+    min-width: 250px;
+    white-space: normal;
 }

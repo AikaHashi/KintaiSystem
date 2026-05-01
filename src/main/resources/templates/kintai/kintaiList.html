@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
 	layout:decorate="~{layout/layout}">
@@ -7,14 +6,14 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<meta charset="UTF-8">
 	<!-- CSRF token追加 -->
-	  <meta name="_csrf" content="/*[[${_csrf.token}]]*/">
-	  <meta name="_csrf_header" content="/*[[${_csrf.headerName}]]*/">
+	<meta name="_csrf" content="/*[[${_csrf.token}]]*/">
+	<meta name="_csrf_header" content="/*[[${_csrf.headerName}]]*/">
 
 	<link rel="stylesheet" th:href="@{/css/kintai/list.css}">
 	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css">
 	<link rel="stylesheet" th:href="@{/webjars/datatables/css/jquery.dataTables.min.css}">
 	<script th:inline="javascript">
-		const kintaiList = /*[[${kintaiList}]]*/ [];
+		const kintaiList = /*[[${kintaiList}]]*/[];
 		let kintaiListJson = /*[[${kintaiList}]]*/[];
 		const targetUserName = /*[[${targetUserName}]]*/ 'defaultUser';
 		const sessionUserName = /*[[${sessionUserName}]]*/ 'defaultUser';
@@ -26,33 +25,6 @@
 	<script th:src="@{/webjars/datatables/js/jquery.dataTables.min.js}" defer></script>
 	<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
 	<title>勤怠一覧</title>
-	<style>
-		table {
-			width: 100%;
-			border-collapse: collapse;
-		}
-
-		th,
-		td {
-			padding: 8px;
-			border: 1px solid #ccc;
-			text-align: center;
-		}
-
-		th {
-			background-color: #f2f2f2;
-		}
-
-		input[readonly],
-		input:disabled {
-			background-color: #f9f9f9;
-		}
-
-		#kintaiList-table-container,
-		#tableContainer {
-			margin-top: 20px;
-		}
-	</style>
 </head>
 
 <body>
@@ -81,19 +53,19 @@
 			<div th:if="${role == 'ROLE_ADMIN'}" style="display:flex; gap:8px;">
 				<form th:action="@{/kintai/approve}" method="post" id="approveForm" style="margin:0;">
 					<!-- 必須パラメータ userId を hidden でセット -->
-									    <input type="hidden" name="userId" th:value="${targetUserId}" />
-									    <!-- コメント入力欄 -->
-									    <input type="hidden" name="comment" id="rejectComment" value="">
-									    <!-- ボタンは type="button" にして JS で submit -->
+					<input type="hidden" name="userId" th:value="${targetUserId}" />
+					<!-- コメント入力欄 -->
+					<input type="hidden" name="comment" id="rejectComment" value="">
+					<!-- ボタンは type="button" にして JS で submit -->
 					<button type="button" id="approveBtn">承認</button>
 				</form>
 				<form th:action="@{/kintai/reject}" method="post" id="rejectForm" style="margin:0;">
-				    <!-- 必須パラメータ userId を hidden でセット -->
-				    <input type="hidden" name="userId" th:value="${targetUserId}" />
-				    <!-- コメント入力欄 -->
-				    <input type="hidden" name="comment" id="rejectComment" value="">
-				    <!-- ボタンは type="button" にして JS で submit -->
-				    <button type="button" id="rejectBtn">差戻</button>
+					<!-- 必須パラメータ userId を hidden でセット -->
+					<input type="hidden" name="userId" th:vacalue="${targetUserId}" />
+					<!-- コメント入力欄 -->
+					<input type="hidden" name="comment" id="rejectComment" value="">
+					<!-- ボタンは type="button" にして JS で submit -->
+					<button type="button" id="rejectBtn">差戻</button>
 				</form>
 			</div>
 		</div>
@@ -224,8 +196,40 @@
 		</div>
 
 
-		<div id="kintaiList-table-container"></div>
-		<div id="tableContainer"></div>
+		<div class="table-wrapper">
+		
+		  <table id="kintaiTable" class="kintai-table">
+		
+		    <thead>
+		      <tr>
+		        <th rowspan="2">日付</th>
+		        <th rowspan="2">社員名</th>
+		        <th rowspan="2">更新者</th>
+		        <th colspan="2">予定</th>
+		        <th colspan="8">実績</th>
+		      </tr>
+		
+		      <tr>
+		        <th>勤務時間</th>
+		        <th>休憩時間</th>
+		        <th>勤務時間</th>
+		        <th>休憩時間</th>
+		        <th>所定時間</th>
+		        <th>実働時間</th>
+		        <th>時間外</th>
+		        <th>控除</th>
+		        <th>状態</th>
+		        <th>特記事項</th>
+		      </tr>
+		    </thead>
+		
+		    <tbody id="kintaiTbody">
+		      <!-- JSでここに行を描画 -->
+		    </tbody>
+		
+		  </table>
+		
+		</div>
 	</div>
 </body>
 
